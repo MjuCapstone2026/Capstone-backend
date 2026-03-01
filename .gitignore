@@ -1,0 +1,59 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+# Security
+.env
+
+### Custom Additions ###
+# 1. 애플리케이션 로그
+*.log
+logs/
+
+# 2. OS 관련 파일
+.DS_Store
+Thumbs.db
+
+# 3. 인텔리제이 설정 상세
+.idea/modules.xml
+.idea/workspace.xml  # 개인별 작업 상태가 담겨있어 충돌 1순위입니다.
+.idea/dictionaries/
+.idea/libraries/
+
+# 4. 테스트 결과 리포트
+build/reports/
+out/test/
