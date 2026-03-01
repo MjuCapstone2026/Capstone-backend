@@ -1,4 +1,7 @@
-# 🚀 MJU Capstone Backend Spec
+# 📍 MJU Capstone Backend Spec
+> **명지대학교 자연캠퍼스 가이드 및 사용자 맞춤형 여행 일정을 설계하는 스마트 AI 에이전트**
+
+---
 
 ## 🛠 1. Tech Stack & Versions
 * **Language:** Java 21 (LTS)
