@@ -7,10 +7,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.UUID;
 
 @SpringBootTest
+@ActiveProfiles("test")
+@TestPropertySource(locations = "file:.env") // 로컬 .env 파일을 읽으라고 명시
 @DisplayName("인프라 연결 통합 테스트")
 class InfrastructureConnectTest {
 
