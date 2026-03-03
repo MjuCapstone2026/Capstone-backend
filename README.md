@@ -5,7 +5,7 @@
 
 ## 🛠 1. Tech Stack & Versions
 * **Language:** Java 21 (LTS)
-* **Framework:** Spring Boot 3.4.2
+* **Framework:** Spring Boot 4.0.3
 * **Build Tool:** Gradle 8.11.1
 * **Main DB:** PostgreSQL (Supabase)
 * **Cache/Session:** Redis (Upstash)
