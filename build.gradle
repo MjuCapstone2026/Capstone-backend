@@ -26,7 +26,6 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive' // Reactive Redis (비동기 레디스 전용)
@@ -57,8 +56,8 @@ tasks.named('test') {
 	// 테스트 로그 수준 설정
 	testLogging {
 		events "passed", "skipped", "failed" // 통과, 건너뜀, 실패 이벤트 출력
-		showStandardStreams = true           // System.out.println 로그도 출력
-		displayGranularity = 2               // 상세 수준 설정
+		showStandardStreams = false
+		displayGranularity = 1              // 상세 수준 설정
 	}
 }
 
