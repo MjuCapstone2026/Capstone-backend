@@ -29,6 +29,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive' // Reactive Redis (비동기 레디스 전용)
 
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
