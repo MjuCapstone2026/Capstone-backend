@@ -5,22 +5,22 @@
 
 ## 🛠 1. Tech Stack & Versions
 * **Language:** Java 21 (LTS)
-* **Framework:** Spring Boot 4.0.3
+* **Framework:** Spring Boot 4.0.3(WebFlux/Reactive)
 * **Build Tool:** Gradle 8.11.1
-* **Main DB:** PostgreSQL (Supabase)
-* **Cache/Session:** Redis (Upstash)
+* **Main DB:** PostgreSQL (Supabase) - 동기식(JPA) 격리 운용
+* **Cache/Session:** Redis (Upstash)- 비동기식(Reactive) 운용
 * **Migration:** Flyway 10.x
-* **Documentation:** Swagger (SpringDoc OpenAPI 2.x)
+* **Documentation:** Swagger (SpringDoc OpenAPI 2.x - WebFlux 버전)
 
 ---
 
 ## 📦 2. Core Libraries
 * `spring-boot-starter-web`: REST API 구현
 * `spring-boot-starter-data-jpa`: 데이터베이스 ORM
-* `spring-boot-starter-data-redis`: 캐시 및 실시간 데이터 처리
+* `spring-boot-starter-data-redis-reactive`: Reactive Redis를 통한 비동기 캐싱
 * `spring-dotenv`: `.env` 환경 변수 자동 로드
 * `lombok`: 코드 자동 생성 (Getter, Setter 등)
-* `springdoc-openapi-starter-webmvc-ui`: Swagger UI 자동 생성
+* `springdoc-openapi-starter-webflux-ui`: WebFlux 전용 Swagger UI
 
 ---
 
