@@ -5,7 +5,7 @@
 
 ## 🛠 1. Tech Stack & Versions
 * **Language:** Java 21 (LTS)
-* **Framework:** Spring Boot 4.0.3(WebFlux/Reactive)
+* **Framework:** Spring Boot 3.5.13(WebFlux/Reactive)
 * **Build Tool:** Gradle 8.11.1
 * **Main DB:** PostgreSQL (Supabase) - 동기식(JPA) 격리 운용
 * **Cache/Session:** Redis (Upstash)- 비동기식(Reactive) 운용
