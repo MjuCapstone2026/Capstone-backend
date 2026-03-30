@@ -111,3 +111,43 @@ flyway {
 
 * **Swagger UI 주소:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 * **API Docs (JSON):** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+---
+
+## 🐳 7. Docker 빌드 및 배포
+
+> 실제 배포는 `capstone-deploy` 레포에서 전체 서비스를 한번에 실행합니다.
+> 아래는 이 서비스만 단독으로 빌드/실행할 때 사용합니다.
+
+### 이미지 빌드
+
+```bash
+docker build -t capstone-backend .
+```
+
+### 단독 실행
+
+```bash
+docker run -p 8080:8080 --env-file .env capstone-backend
+```
+
+### 빌드 과정
+
+1. `gradle:8-jdk21` 이미지에서 `./gradlew bootJar` 실행 (테스트 제외)
+2. `eclipse-temurin:21-jre-alpine` 이미지에서 jar 파일만 복사하여 실행
+3. 멀티 스테이지 빌드로 최종 이미지 크기 최소화
+
+### 환경 변수 (`.env`)
+
+| 변수 | 설명 |
+|------|------|
+| `DB_URL` | Supabase PostgreSQL 접속 URL |
+| `DB_USERNAME` | DB 사용자명 |
+| `DB_PASSWORD` | DB 비밀번호 |
+| `DB_POOL_SIZE` | HikariCP 커넥션 풀 크기 |
+| `REDIS_HOST` | Upstash Redis 호스트 |
+| `REDIS_PORT` | Upstash Redis 포트 |
+| `REDIS_PASSWORD` | Upstash Redis 비밀번호 |
+| `AI_AGENT_URL` | FastAPI AI 서버 주소 |
+| `CLERK_JWKS_URL` | Clerk JWKS 엔드포인트 |
+| `CLERK_ISSUER` | Clerk Issuer URL |
