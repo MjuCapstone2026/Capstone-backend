@@ -44,7 +44,7 @@ public class TestController {
         String javaMessage = "✅ [Spring Boot 응답]: 사용자 이름 = " + name + ", " + aiAgentUrl + " 로 토스합니다.\n";
 
         return webClient.get()
-                .uri("/api/test/python-test")
+                .uri("/api/test/auth-test")
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .bodyToMono(String.class)
