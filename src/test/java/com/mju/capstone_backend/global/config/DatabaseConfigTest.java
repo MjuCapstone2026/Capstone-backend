@@ -42,7 +42,7 @@ class DatabaseConfigTest {
         HikariDataSource hikariDataSource = (HikariDataSource) dataSource;
 
         // 열쇠(커넥션) 개수 검증
-        Assertions.assertEquals(20, hikariDataSource.getMaximumPoolSize());
+        Assertions.assertEquals(15, hikariDataSource.getMaximumPoolSize());
     }
 
     @Test
