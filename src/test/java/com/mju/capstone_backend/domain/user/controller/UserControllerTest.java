@@ -38,7 +38,7 @@ class UserControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(clerkId)))
                 .post()
-                .uri("/api/user/signup")
+                .uri("/api/users/signup")
                 .exchange()
                 .expectStatus().isOk();
 
@@ -50,7 +50,7 @@ class UserControllerTest {
     void signup_withoutJwt_returns401() {
         webTestClient
                 .post()
-                .uri("/api/user/signup")
+                .uri("/api/users/signup")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }

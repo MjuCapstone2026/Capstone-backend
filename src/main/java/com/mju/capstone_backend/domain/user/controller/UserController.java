@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 
 @Tag(name = "User API", description = "사용자 관련 API")
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
