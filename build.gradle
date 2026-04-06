@@ -37,11 +37,15 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'io.projectreactor:reactor-test'
 
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // Clerk JWT 검증을 위한 핵심
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 	// Swagger (OpenAPI 3)
 	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.5'
