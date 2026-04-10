@@ -1,5 +1,7 @@
 package com.mju.capstone_backend.global.config;
 
+import com.mju.capstone_backend.global.exception.SecurityErrorHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,7 +11,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
 @EnableWebFluxSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final SecurityErrorHandler securityErrorHandler;
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
@@ -25,6 +30,11 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> {}) // application.properties의 Clerk JWKS 설정 사용
+                        .authenticationEntryPoint(securityErrorHandler)
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(securityErrorHandler)
+                        .accessDeniedHandler(securityErrorHandler)
                 )
                 .build();
     }
