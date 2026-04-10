@@ -108,7 +108,42 @@ V{버전}__{snake_case_설명}.sql
 
 ---
 
-## 3. 테스트 패턴
+## 3. 에러 처리
+
+### 공통 에러 응답 형식
+모든 에러 응답은 `ErrorResponse` 형식으로 통일한다:
+```json
+{
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Invalid or expired token."
+}
+```
+
+### 에러 처리 레이어 구분
+| 발생 위치 | 핸들러 | 담당 상태코드 |
+|----------|--------|------------|
+| Security 필터 레이어 | `SecurityErrorHandler` | 401, 403 |
+| Controller 레이어 | `GlobalExceptionHandler` | 404, 500 등 |
+
+`@RestControllerAdvice`는 Security 필터 예외를 잡지 못하므로 두 핸들러가 반드시 공존해야 한다.
+
+### 패키지 구조
+```
+global/exception/
+├── ErrorResponse.java          공통 에러 응답 record
+├── SecurityErrorHandler.java   401(ServerAuthenticationEntryPoint)
+│                               403(ServerAccessDeniedHandler)
+└── GlobalExceptionHandler.java @RestControllerAdvice (그 외 예외)
+```
+
+### 새 예외 추가 방법
+- **도메인 비즈니스 예외** (예: 리소스 없음) → `GlobalExceptionHandler`에 `@ExceptionHandler` 추가
+- **보안 관련 예외** (예: 토큰 만료 세분화) → `SecurityErrorHandler`의 `commence()` 수정
+
+---
+
+## 4. 테스트 패턴
 
 ### Service 단위 테스트
 ```

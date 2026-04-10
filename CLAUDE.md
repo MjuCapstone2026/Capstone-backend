@@ -48,6 +48,20 @@ Mono.fromCallable(() -> repository.save(entity))
 
 ---
 
+## 에러 처리 규칙
+
+모든 에러는 `{"status": N, "error": "...", "message": "..."}` 형식으로 반환한다.
+
+| 상황 | 핸들러 |
+|------|--------|
+| JWT 없음/만료 (401) | `SecurityErrorHandler` |
+| 권한 없음 (403) | `SecurityErrorHandler` |
+| 비즈니스 예외 (404, 500 등) | `GlobalExceptionHandler` |
+
+새 예외 추가 시 `global/exception/` 패키지만 수정한다. SecurityConfig는 건드리지 않는다.
+
+---
+
 ## 핵심 테스트 규칙
 
 | 레이어 | 애노테이션 | 외부 서비스 |
