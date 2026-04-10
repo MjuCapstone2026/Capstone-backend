@@ -35,7 +35,7 @@ class DatabaseConfigTest {
     }
 
     @Test
-    @DisplayName("HikariCP 커넥션 풀 사이즈가 .env 설정값(20)과 일치하는지 확인")
+    @DisplayName("HikariCP 커넥션 풀 사이즈가 .env 설정값(15)과 일치하는지 확인")
     void hikariPoolSizeTest() {
         // DataSource 인스턴스가 HikariDataSource인지 확인 후 형변환
         Assertions.assertTrue(dataSource instanceof HikariDataSource);
