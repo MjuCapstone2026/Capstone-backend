@@ -1,8 +1,8 @@
 ---
 name: new-api
-description: 새 API 엔드포인트 추가 — Controller 메서드 작성 + docs/api 명세 파일 동시 생성
+description: 새 API 엔드포인트 추가 — Controller 메서드 + Service interface/impl 메서드 작성
 argument-hint: [HTTP메서드] [경로] (예: POST /api/schedules)
-allowed-tools: Read, Write, Edit, Glob
+allowed-tools: Read, Edit, Glob
 ---
 
 @docs/conventions.md 의 코딩 규칙을 준수한다.
@@ -35,46 +35,6 @@ public Mono<Void> {methodName}(...) {
 - `{Name}Service` interface에 메서드 선언
 - `{Name}ServiceImpl`에 구현
 
-### 4. docs/api 명세 파일 생성
-파일 경로: `docs/api/v1/{도메인}/{HTTP메서드}_{경로_슬래시를_언더스코어}.md`
-예) `docs/api/v1/schedules/GET_schedules_id.md`
-
-아래 템플릿으로 생성:
-```
-# {HTTP메서드} {전체 경로}
-
-## 설명
-{한 줄 설명}
-
-## 인증
-Bearer JWT (Clerk) 필요 여부: Y / N
-
-## Request
-
-### Path Parameters
-| 이름 | 타입 | 필수 | 설명 |
-|------|------|------|------|
-|      |      |      |      |
-
-### Request Body
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|------|------|
-|      |      |      |      |
-
-## Response
-
-### 200 OK
-| 필드 | 타입 | 설명 |
-|------|------|------|
-|      |      |      |
-
-### Error Cases
-| 상태코드 | 설명 |
-|---------|------|
-|         |      |
-```
-
-### 5. 완료 후 안내
+### 4. 완료 후 안내
 - 추가된 Controller 메서드 경로
-- 생성된 docs/api 파일 경로
 - Flyway 마이그레이션이 필요한 경우 `/new-migration` 실행을 안내
