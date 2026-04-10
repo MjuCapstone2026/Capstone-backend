@@ -8,8 +8,10 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+
 import reactor.core.publisher.Mono;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureWebTestClient
+@ActiveProfiles("test")
 @TestPropertySource(locations = "file:.env")
 @DisplayName("UserController 슬라이스 테스트")
 class UserControllerTest {

@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.user.service;
 
 import com.mju.capstone_backend.domain.user.entity.User;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ class UserServiceImplTest {
     private UserServiceImpl userService;
 
     // 테스트용 즉시 실행 스케줄러 주입
+    @BeforeEach
     void injectScheduler() throws Exception {
         var field = UserServiceImpl.class.getDeclaredField("dbScheduler");
         field.setAccessible(true);
