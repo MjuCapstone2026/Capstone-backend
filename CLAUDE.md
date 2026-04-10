@@ -3,7 +3,9 @@
 ## 참고 문서
 - @docs/conventions.md — 코딩 스타일 & 테스트 패턴 (상세)
 - @docs/db-schema.md — DB 스키마 & Flyway 이력
-- @docs/api/ — API 명세서 (엔드포인트별)
+- @docs/api/ — API 명세서 (엔드포인트별, 파일명: `{HTTP메서드}_v1_{도메인}_{액션}.md`)
+  - 예) `docs/api/v1/users/POST_v1_users_signup.md`
+  - 특정 엔드포인트 작업 시 해당 파일을 먼저 읽는다
 
 ---
 
