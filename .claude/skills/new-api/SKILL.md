@@ -2,7 +2,7 @@
 name: new-api
 description: 새 API 엔드포인트 추가 — Controller 메서드 + Service interface/impl 메서드 작성
 argument-hint: [HTTP메서드] [경로] (예: POST /api/schedules)
-allowed-tools: Read, Edit, Glob
+allowed-tools: Read, Write, Edit, Glob
 ---
 
 @docs/conventions.md 의 코딩 규칙을 준수한다.
