@@ -1,14 +1,4 @@
-# 채팅방 상세
-
-HTTP 요청 방식: GET
-개발 상태: 진행중
-도메인: CHAT-ROOMS
-엔드포인트: /api/v1/chat-rooms/{roomId}
-특이사항: 채팅방 메타 정보 반환.
-itineraryId 필요
-마지막 수정시각: 2026년 4월 14일 오후 2:26
-
-## **[GET] /v1/chat-rooms/{roomId}**
+## **[GET] api/v1/chat-rooms/{roomId}**
 
 현재 로그인한 사용자가 소유한 특정 채팅방의 메타 정보를 조회합니다.
 
@@ -18,11 +8,11 @@ itineraryId 필요
 
 ### **1. 기본 정보**
 
-| 항목 | 내용 |
-| --- | --- |
-| Method | `GET` |
-| URL | `/v1/chat-rooms/{roomId}` |
-| Summary | 채팅방 상세 조회 |
+| 항목 | 내용                          |
+| --- |-----------------------------|
+| Method | `GET`                       |
+| URL | `api/v1/chat-rooms/{roomId}`  |
+| Summary | 채팅방 상세 조회                   |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
 ---

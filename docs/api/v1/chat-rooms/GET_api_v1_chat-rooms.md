@@ -1,12 +1,4 @@
-# 내 채팅방 목록
-
-HTTP 요청 방식: GET
-개발 상태: 시작전
-도메인: CHAT-ROOMS
-엔드포인트: /v1/chat-rooms/
-마지막 수정시각: 2026년 4월 13일 오후 7:55
-
-## **[GET] /v1/chat-rooms**
+## **[GET] api/v1/chat-rooms**
 
 현재 로그인한 사용자의 채팅방 목록을 조회합니다.
 
@@ -14,11 +6,11 @@ HTTP 요청 방식: GET
 
 ### **1. 기본 정보**
 
-| 항목 | 내용 |
-| --- | --- |
-| Method | `GET` |
-| URL | `/v1/chat-rooms` |
-| Summary | 내 채팅방 목록 조회 |
+| 항목 | 내용                          |
+| --- |-----------------------------|
+| Method | `GET`                       |
+| URL | `api/v1/chat-rooms`         |
+| Summary | 내 채팅방 목록 조회                 |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
 ---

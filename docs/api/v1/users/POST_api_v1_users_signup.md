@@ -1,14 +1,14 @@
-## [POST] /api/users/signup
+## [POST] /api/v1/users/signup
 
 Clerk 인증 정보를 기반으로 서비스 데이터베이스에 사용자를 등록합니다. 멱등성(Idempotent)이 보장되어 여러 번 호출해도 안전합니다.
 
 ### 1. 기본 정보
 
-| **항목** | **내용** |
-| --- | --- |
-| **Method** | `POST` |
-| **URL** | `/api/users/signup` |
-| **Summary** | 회원가입 및 사용자 동기화 |
+| **항목** | **내용**                          |
+| --- |---------------------------------|
+| **Method** | `POST`                          |
+| **URL** | `/api/v1/users/signup`          |
+| **Summary** | 회원가입 및 사용자 동기화                  |
 | **Authentication** | **Bearer JWT** (Clerk 발급 토큰 필수) |
 
 ---

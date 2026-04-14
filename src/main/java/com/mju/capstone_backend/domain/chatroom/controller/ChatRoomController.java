@@ -5,6 +5,8 @@ import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameRequest;
+import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
 import com.mju.capstone_backend.domain.chatroom.service.ChatRoomService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +53,17 @@ public class ChatRoomController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return chatRoomService.getChatRoom(clerkId, roomId);
+    }
+
+    @Operation(summary = "채팅방 이름 수정", description = "현재 로그인한 사용자가 소유한 채팅방의 이름을 수정합니다.")
+    @PatchMapping("/{roomId}/name")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<UpdateChatRoomNameResponse> updateChatRoomName(
+            @PathVariable UUID roomId,
+            @Valid @RequestBody UpdateChatRoomNameRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return chatRoomService.updateChatRoomName(clerkId, roomId, request.name());
     }
 
     @Operation(summary = "채팅방 삭제", description = "현재 로그인한 사용자가 소유한 채팅방을 삭제합니다. 연결된 메시지와 일정도 함께 삭제됩니다.")

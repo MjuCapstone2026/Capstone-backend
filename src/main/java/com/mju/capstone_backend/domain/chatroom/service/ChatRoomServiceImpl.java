@@ -7,6 +7,7 @@ import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
@@ -75,7 +76,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     chatRoom.getCreatedAt(),
                     chatRoom.getUpdatedAt()
             );
-        }).subscribeOn(dbScheduler);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create chat room.")
+                );
     }
 
     @Override
@@ -98,7 +103,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     .toList();
 
             return new GetChatRoomsResponse(items);
-        }).subscribeOn(dbScheduler);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat rooms.")
+                );
     }
 
     @Override
@@ -124,7 +133,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     chatRoom.getCreatedAt(),
                     chatRoom.getUpdatedAt()
             );
-        }).subscribeOn(dbScheduler);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat room.")
+                );
     }
 
     @Override
@@ -148,7 +161,33 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             chatRoomRepository.deleteById(roomId);
 
             return new DeleteChatRoomResponse(roomId, true);
-        }).subscribeOn(dbScheduler);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete chat room.")
+                );
+    }
+
+    @Override
+    public Mono<UpdateChatRoomNameResponse> updateChatRoomName(String clerkId, UUID roomId, String name) {
+        return Mono.fromCallable(() -> {
+            ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this chat room.");
+            }
+
+            chatRoom.updateName(name);
+            ChatRoom saved = chatRoomRepository.save(chatRoom);
+
+            return new UpdateChatRoomNameResponse(saved.getId(), saved.getName(), saved.getUpdatedAt());
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update chat room name.")
+                );
     }
 
     private Map<String, Object> parsePreferences(String preferences) {

@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -28,13 +31,15 @@ public class ChatRoom {
     @Column(name = "ai_summary")
     private String aiSummary;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "preferences", columnDefinition = "jsonb")
     private String preferences;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at", insertable = false, updatable = false)
+    @UpdateTimestamp
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
     public static ChatRoom of(String clerkId, String name) {
@@ -42,5 +47,9 @@ public class ChatRoom {
         chatRoom.clerkId = clerkId;
         chatRoom.name = name;
         return chatRoom;
+    }
+
+    public void updateName(String name) {
+        this.name = name;
     }
 }

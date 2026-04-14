@@ -14,7 +14,7 @@ public record CreateChatRoomRequest(
         @NotNull LocalDate endDate,
         BigDecimal budget,
         @NotNull @Min(1) Integer adultCount,
-        Integer childCount,
+        @Min(0) Integer childCount,
         List<Integer> childAges
 ) {
     public int resolvedChildCount() {

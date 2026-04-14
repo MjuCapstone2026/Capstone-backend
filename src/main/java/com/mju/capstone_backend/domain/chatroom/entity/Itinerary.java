@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,6 +50,7 @@ public class Itinerary {
     @Column(name = "child_count", nullable = false)
     private int childCount;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Convert(converter = IntegerListConverter.class)
     @Column(name = "child_ages", columnDefinition = "jsonb")
     private List<Integer> childAges;
@@ -55,6 +58,7 @@ public class Itinerary {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "day_plans", columnDefinition = "jsonb", nullable = false)
     private String dayPlans;
 

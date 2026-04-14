@@ -1,13 +1,4 @@
-# 채팅방 삭제
-
-HTTP 요청 방식: DELETE
-개발 상태: 진행중
-도메인: CHAT-ROOMS
-엔드포인트: /api/v1/chat-rooms/{roomId}
-특이사항: 메시지, 일정 cascade
-마지막 수정시각: 2026년 4월 14일 오후 2:26
-
-## **[DELETE] /v1/chat-rooms/{roomId}**
+## **[DELETE] api/v1/chat-rooms/{roomId}**
 
 현재 로그인한 사용자가 소유한 특정 채팅방을 삭제합니다.
 
@@ -17,11 +8,11 @@ HTTP 요청 방식: DELETE
 
 ### **1. 기본 정보**
 
-| 항목 | 내용 |
-| --- | --- |
-| Method | `DELETE` |
-| URL | `/v1/chat-rooms/{roomId}` |
-| Summary | 채팅방 삭제 |
+| 항목 | 내용                          |
+| --- |-----------------------------|
+| Method | `DELETE`                    |
+| URL | `api/v1/chat-rooms/{roomId}`  |
+| Summary | 채팅방 삭제                      |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
 ---
