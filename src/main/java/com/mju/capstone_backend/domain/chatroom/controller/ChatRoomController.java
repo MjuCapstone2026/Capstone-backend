@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.chatroom.controller;
 
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.service.ChatRoomService;
@@ -50,5 +51,15 @@ public class ChatRoomController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return chatRoomService.getChatRoom(clerkId, roomId);
+    }
+
+    @Operation(summary = "채팅방 삭제", description = "현재 로그인한 사용자가 소유한 채팅방을 삭제합니다. 연결된 메시지와 일정도 함께 삭제됩니다.")
+    @DeleteMapping("/{roomId}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<DeleteChatRoomResponse> deleteChatRoom(
+            @PathVariable UUID roomId,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return chatRoomService.deleteChatRoom(clerkId, roomId);
     }
 }

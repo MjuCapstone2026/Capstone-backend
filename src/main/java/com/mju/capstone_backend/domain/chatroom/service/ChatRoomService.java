@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.chatroom.service;
 
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import reactor.core.publisher.Mono;
@@ -15,4 +16,6 @@ public interface ChatRoomService {
     Mono<GetChatRoomsResponse> getChatRooms(String clerkId);
 
     Mono<GetChatRoomResponse> getChatRoom(String clerkId, UUID roomId);
+
+    Mono<DeleteChatRoomResponse> deleteChatRoom(String clerkId, UUID roomId);
 }

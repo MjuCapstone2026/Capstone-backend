@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.chatroom.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ItineraryRepository itineraryRepository;
+    private final ReservationRepository reservationRepository;
     private final Scheduler dbScheduler;
     private final ObjectMapper objectMapper;
 
@@ -121,6 +124,30 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     chatRoom.getCreatedAt(),
                     chatRoom.getUpdatedAt()
             );
+        }).subscribeOn(dbScheduler);
+    }
+
+    @Override
+    public Mono<DeleteChatRoomResponse> deleteChatRoom(String clerkId, UUID roomId) {
+        return Mono.fromCallable(() -> {
+            ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to delete this chat room.");
+            }
+
+            itineraryRepository.findByRoomId(roomId).ifPresent(itinerary -> {
+                if (reservationRepository.existsByItineraryId(itinerary.getId())) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Cannot delete chat room with existing reservations.");
+                }
+            });
+
+            chatRoomRepository.deleteById(roomId);
+
+            return new DeleteChatRoomResponse(roomId, true);
         }).subscribeOn(dbScheduler);
     }
 
