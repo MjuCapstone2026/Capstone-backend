@@ -1,7 +1,10 @@
 package com.mju.capstone_backend.domain.chatroom.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
@@ -17,6 +20,7 @@ import reactor.core.scheduler.Scheduler;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final ChatRoomRepository chatRoomRepository;
     private final ItineraryRepository itineraryRepository;
     private final Scheduler dbScheduler;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Mono<CreateChatRoomResponse> createChatRoom(String clerkId, CreateChatRoomRequest request) {
@@ -66,5 +71,37 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     chatRoom.getUpdatedAt()
             );
         }).subscribeOn(dbScheduler);
+    }
+
+    @Override
+    public Mono<GetChatRoomsResponse> getChatRooms(String clerkId) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            List<GetChatRoomsResponse.ChatRoomItem> items = chatRoomRepository
+                    .findByClerkIdOrderByUpdatedAtDesc(clerkId)
+                    .stream()
+                    .map(room -> new GetChatRoomsResponse.ChatRoomItem(
+                            room.getId(),
+                            room.getAiSummary(),
+                            parsePreferences(room.getPreferences()),
+                            room.getCreatedAt(),
+                            room.getUpdatedAt()
+                    ))
+                    .toList();
+
+            return new GetChatRoomsResponse(items);
+        }).subscribeOn(dbScheduler);
+    }
+
+    private Map<String, Object> parsePreferences(String preferences) {
+        if (preferences == null) return null;
+        try {
+            return objectMapper.readValue(preferences, new TypeReference<>() {});
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
