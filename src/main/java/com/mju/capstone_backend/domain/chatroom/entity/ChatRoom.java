@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
@@ -35,6 +36,7 @@ public class ChatRoom {
     @Column(name = "preferences", columnDefinition = "jsonb")
     private String preferences;
 
+    @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
