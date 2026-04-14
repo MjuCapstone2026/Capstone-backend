@@ -55,7 +55,7 @@ class ChatRoomControllerTest {
     @DisplayName("채팅방 생성 - 유효한 JWT와 요청 본문으로 201 반환")
     void createChatRoom_withValidJwt_returns201() {
         CreateChatRoomResponse response = new CreateChatRoomResponse(
-                ROOM_ID, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                ROOM_ID, ITINERARY_ID, CLERK_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(chatRoomService.createChatRoom(eq(CLERK_ID), any(CreateChatRoomRequest.class)))
                 .thenReturn(Mono.just(response));
@@ -139,7 +139,7 @@ class ChatRoomControllerTest {
     @DisplayName("채팅방 상세 조회 - 유효한 JWT로 200 반환")
     void getChatRoom_withValidJwt_returns200() {
         GetChatRoomResponse response = new GetChatRoomResponse(
-                ROOM_ID, null, null, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                ROOM_ID, CLERK_ID, null, null, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(chatRoomService.getChatRoom(CLERK_ID, ROOM_ID)).thenReturn(Mono.just(response));
 
