@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.chatroom.controller;
 
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.service.ChatRoomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Tag(name = "ChatRoom API", description = "채팅방 관련 API")
 @RestController
@@ -37,5 +40,15 @@ public class ChatRoomController {
     public Mono<GetChatRoomsResponse> getChatRooms(JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return chatRoomService.getChatRooms(clerkId);
+    }
+
+    @Operation(summary = "채팅방 상세 조회", description = "현재 로그인한 사용자가 소유한 특정 채팅방의 메타 정보와 연결된 itineraryId를 반환합니다.")
+    @GetMapping("/{roomId}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<GetChatRoomResponse> getChatRoom(
+            @PathVariable UUID roomId,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return chatRoomService.getChatRoom(clerkId, roomId);
     }
 }

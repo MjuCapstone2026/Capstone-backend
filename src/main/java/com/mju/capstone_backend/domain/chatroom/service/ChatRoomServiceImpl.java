@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
+import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
@@ -21,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -93,6 +95,32 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     .toList();
 
             return new GetChatRoomsResponse(items);
+        }).subscribeOn(dbScheduler);
+    }
+
+    @Override
+    public Mono<GetChatRoomResponse> getChatRoom(String clerkId, UUID roomId) {
+        return Mono.fromCallable(() -> {
+            ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to access this chat room.");
+            }
+
+            UUID itineraryId = itineraryRepository.findByRoomId(roomId)
+                    .map(Itinerary::getId)
+                    .orElse(null);
+
+            return new GetChatRoomResponse(
+                    chatRoom.getId(),
+                    chatRoom.getAiSummary(),
+                    parsePreferences(chatRoom.getPreferences()),
+                    itineraryId,
+                    chatRoom.getCreatedAt(),
+                    chatRoom.getUpdatedAt()
+            );
         }).subscribeOn(dbScheduler);
     }
 
