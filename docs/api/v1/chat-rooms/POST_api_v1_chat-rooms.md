@@ -57,6 +57,7 @@
 {
   "roomId": "9d12a7e5-2a7b-4e86-bf5c-2d1b50dcb1a4",
   "itineraryId": "aaa-111",
+  "clerkId": "user_2N...",
   "createdAt": "2026-04-03T22:00:00",
   "updatedAt": "2026-04-03T22:00:00"
 }
