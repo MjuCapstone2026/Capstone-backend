@@ -35,6 +35,14 @@ public class TestController {
                 .onErrorResume(e -> Mono.just(javaMessage + "⚠️ [Error]: 파이썬 서버 연결 실패!"));
     }
 
+    @Operation(summary = "JWT 인증 확인 (인증 필요)", description = "현재 JWT에서 clerkId와 이름을 반환한다.")
+    @GetMapping("/me")
+    public Mono<String> me(JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        String name = authentication.getToken().getClaimAsString("name");
+        return Mono.just("clerkId: " + clerkId + ", name: " + name);
+    }
+
     @Operation(summary = "JWT 토큰 전달 테스트", description = "JWT에서 사용자 이름 출력 후 FastAPI에 토큰 전달하여 응답 확인")
     @GetMapping("/auth-connect")
     public Mono<String> authConnect(JwtAuthenticationToken authentication) {
