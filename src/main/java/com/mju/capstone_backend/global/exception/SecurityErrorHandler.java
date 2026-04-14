@@ -21,11 +21,13 @@ public class SecurityErrorHandler implements ServerAuthenticationEntryPoint, Ser
 
     private final ObjectMapper objectMapper;
 
+    // 401 — JWT 없음 또는 만료
     @Override
     public Mono<Void> commence(ServerWebExchange exchange, AuthenticationException ex) {
         return write(exchange, HttpStatus.UNAUTHORIZED, "Invalid or expired token.");
     }
 
+    // 403 — 인증은 됐지만 권한 없음
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, AccessDeniedException ex) {
         return write(exchange, HttpStatus.FORBIDDEN, "Access denied.");
