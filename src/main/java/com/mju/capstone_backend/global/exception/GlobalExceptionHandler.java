@@ -4,10 +4,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(WebExchangeBindException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + " " + error.getDefaultMessage() + ".")
+                .findFirst()
+                .orElse("Validation failed.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
+    }
 
     // 4xx, 5xx — ResponseStatusException을 명시적으로 throw한 경우 (상태코드는 throw 시점에 결정)
     // throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid request") 와 같은 형식으로 Custom 예외처럼 사용 가능
@@ -18,7 +29,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(ErrorResponse.of(status, message));
     }
 
-    // 500 — 위 핸들러에서 잡히지 않은 모든 예외 (DB 장애, NPE 등)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
