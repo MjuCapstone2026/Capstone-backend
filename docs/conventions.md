@@ -187,7 +187,7 @@ class UserControllerTest {
     @Autowired
     WebTestClient webTestClient;
 
-    @MockBean
+    @MockitoBean
     UserService userService;
 
     @Test
@@ -209,6 +209,23 @@ class UserControllerTest {
             .expectStatus().isUnauthorized();
     }
 }
+```
+
+### Mock 빈 선언
+Spring Boot 3.4부터 `@MockBean`(`org.springframework.boot.test.mock.mockito`)은 deprecated되었다.
+반드시 `@MockitoBean`(`org.springframework.test.context.bean.override.mockito`)을 사용한다:
+```
+// 올바른 방식 (Spring Boot 3.4+)
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+@MockitoBean
+UserService userService;
+
+// 금지 (deprecated)
+import org.springframework.boot.test.mock.mockito.MockBean;
+
+@MockBean
+UserService userService;
 ```
 
 ### 테스트 환경 설정
