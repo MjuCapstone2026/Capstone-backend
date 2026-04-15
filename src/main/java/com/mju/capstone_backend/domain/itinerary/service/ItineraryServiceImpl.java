@@ -66,6 +66,10 @@ public class ItineraryServiceImpl implements ItineraryService {
     @Override
     public Mono<GetItineraryResponse> getItinerary(String clerkId, UUID itineraryId) {
         return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
             Itinerary itinerary = itineraryRepository.findById(itineraryId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
 
