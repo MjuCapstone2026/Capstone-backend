@@ -10,6 +10,7 @@ public record GetChatRoomsResponse(
 ) {
     public record ChatRoomItem(
             UUID roomId,
+            String name,
             String clerkId,
             String aiSummary,
             Map<String, Object> preferences,

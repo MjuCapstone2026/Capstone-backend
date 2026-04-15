@@ -44,6 +44,7 @@
 ```json
 {
   "roomId": "9d12a7e5-2a7b-4e86-bf5c-2d1b50dcb1a4",
+  "name": "3박 4일 오사카 여행",
   "clerkId": "user_2N...",
   "aiSummary": "오사카 3박 4일 여행 계획 중",
   "preferences": {

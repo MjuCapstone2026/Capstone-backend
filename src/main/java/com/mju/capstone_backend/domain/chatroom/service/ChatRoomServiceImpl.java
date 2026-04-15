@@ -73,6 +73,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
             return new CreateChatRoomResponse(
                     chatRoom.getId(),
+                    chatRoom.getName(),
                     itinerary.getId(),
                     chatRoom.getClerkId(),
                     chatRoom.getCreatedAt(),
@@ -97,6 +98,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     .stream()
                     .map(room -> new GetChatRoomsResponse.ChatRoomItem(
                             room.getId(),
+                            room.getName(),
                             room.getClerkId(),
                             room.getAiSummary(),
                             parsePreferences(room.getPreferences()),
@@ -130,6 +132,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
             return new GetChatRoomResponse(
                     chatRoom.getId(),
+                    chatRoom.getName(),
                     chatRoom.getClerkId(),
                     chatRoom.getAiSummary(),
                     parsePreferences(chatRoom.getPreferences()),

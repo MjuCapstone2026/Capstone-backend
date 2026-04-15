@@ -45,6 +45,7 @@
   "rooms": [
     {
       "roomId": "9d12a7e5-2a7b-4e86-bf5c-2d1b50dcb1a4",
+      "name": "3박 4일 오사카 여행",
       "clerkId": "user_2N...",
       "aiSummary": "오사카 3박 4일 여행 계획 중",
       "preferences": {
@@ -56,6 +57,7 @@
     },
     {
       "roomId": "15fdb4a4-7d9a-4b7c-9bcb-8d9a4f45be21",
+      "name": "1박 2일 부산 여행",
       "clerkId": "user_2N...",
       "aiSummary": null,
       "preferences": null,
