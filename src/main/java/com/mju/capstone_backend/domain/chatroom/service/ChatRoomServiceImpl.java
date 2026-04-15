@@ -22,7 +22,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,12 +44,14 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
             }
 
-            int childCount = request.resolvedChildCount();
-            List<Integer> childAges = request.childAges();
-
-            if (childCount > 0 && (childAges == null || childAges.size() != childCount)) {
+            if (request.startDate().isAfter(request.endDate())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "childAges must be provided when childCount > 0.");
+                        "startDate must not be later than endDate.");
+            }
+
+            if (request.childAges().size() != request.childCount()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "childAges length must match childCount.");
             }
 
             long totalDays = ChronoUnit.DAYS.between(request.startDate(), request.endDate()) + 1;
@@ -65,8 +66,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                             request.endDate(),
                             request.budget(),
                             request.adultCount(),
-                            childCount,
-                            childAges != null ? childAges : Collections.emptyList()
+                            request.childCount(),
+                            request.childAges()
                     )
             );
 

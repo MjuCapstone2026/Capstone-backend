@@ -1,4 +1,4 @@
-package com.mju.capstone_backend.domain.chatroom.entity;
+package com.mju.capstone_backend.domain.itinerary.entity;
 
 import com.mju.capstone_backend.global.converter.IntegerListConverter;
 import jakarta.persistence.*;
@@ -32,10 +32,10 @@ public class Itinerary {
     @Column(name = "destination", nullable = false)
     private String destination;
 
-    @Column(name = "start_date")
+    @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column(name = "end_date")
+    @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
     @Column(name = "total_days", nullable = false)

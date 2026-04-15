@@ -97,6 +97,28 @@ public class {Name}Controller {
 }
 ```
 
+### Swagger 예시 데이터
+Request Body가 있는 엔드포인트는 Swagger UI에서 바로 테스트할 수 있도록 **Request DTO 클래스**에 `@Schema(example = "...")`를 추가한다.
+
+컨트롤러가 아닌 DTO에 붙이는 이유: Swagger의 `@RequestBody`와 Spring의 `@RequestBody`가 이름이 동일하여 컨트롤러에서 함께 사용하면 반드시 하나를 풀네임으로 써야 하는 문제가 생기기 때문이다.
+
+```java
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(example = """
+        {
+          "field": "value"
+        }
+        """)
+public record SomeRequest(
+        @NotBlank String field
+) {
+}
+```
+
+- 예시 데이터는 `docs/api/` 하위 해당 엔드포인트 명세서의 **2.3 Body** 샘플과 동일하게 유지한다.
+- Request Body가 없는 DTO(GET, DELETE 등)에는 추가하지 않는다.
+
 ### Flyway 마이그레이션 네이밍
 ```
 V{버전}__{snake_case_설명}.sql
