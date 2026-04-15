@@ -210,7 +210,7 @@ users ──< chat_rooms ──< chat_messages
 `itinerary_id → itineraries → room_id → chat_rooms → clerk_id` 조인으로 사용자를 특정할 수 있으므로 중복 저장을 제거했습니다.
 
 ### itinerary_logs 추가
-`itineraries` 수정 시 변경 전 `day_plans`를 스냅샷으로 쌓아 일정 히스토리를 관리합니다.
+`itineraries`의 기본 정보 수정 또는 `day_plans` 수정 시 변경 전 주요 9개 필드(`destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans`)의 스냅샷을 쌓아 일정 히스토리를 관리합니다. `status` 변경 및 아이템 완료 상태 변경(`todo`/`done`)은 스냅샷 대상에서 제외됩니다.
 
 ### reservations.status 단순화
 예약 완료된 데이터만 저장하는 테이블이므로 `confirmed`, `changed`, `cancelled`만 유지합니다.

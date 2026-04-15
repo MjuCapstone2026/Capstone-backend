@@ -123,6 +123,8 @@
 5. **Validation**: 요청 `status` 값이 `draft` / `completed` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
 6. **Update**: `itineraries.status` 및 `updated_at`을 업데이트합니다.
 
+> `status`는 사용자가 카테고리 분류 목적으로 사용하는 값입니다. `completed` 여부는 다른 어떤 비즈니스 로직에도 영향을 주지 않으며, `completed` 상태인 일정도 기본 정보 수정·아이템 상태 변경 등 모든 수정이 허용됩니다.
+
 #### **4.2 DB 업데이트 구조 (itineraries Table)**
 
 | Column | Type | Description |

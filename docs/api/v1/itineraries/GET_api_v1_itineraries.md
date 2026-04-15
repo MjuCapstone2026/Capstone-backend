@@ -97,7 +97,7 @@
 3. **User Check**: `users` 테이블에서 해당 `clerk_id` 사용자가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
 4. **Query**: `chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는 itineraries를 조회합니다. `chat_rooms.name`을 조인하여 함께 반환합니다.
 5. **Sort**: `status = draft` 우선, 동일 status 내 `start_date` 오름차순으로 정렬합니다.
-6. **Response**: 조회한 일정 목록을 반환합니다. 일정이 없는 경우 빈 배열을 반환합니다.
+6. **Response**: 조회한 일정 목록을 반환합니다. 일정이 없는 경우 빈 배열을 반환합니다. `endDate`는 목록 UI에서 표시하지 않으므로 응답에서 제외합니다 (프론트엔드에서 필요 시 `startDate + totalDays - 1`로 계산 가능).
 
 #### **4.2 DB 조회 구조**
 

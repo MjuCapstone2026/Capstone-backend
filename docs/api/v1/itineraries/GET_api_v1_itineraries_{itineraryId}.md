@@ -40,7 +40,7 @@
     ```json
     {
       "itineraryId": "aaa-111",
-      "name": "서울 당일치기",
+      "name": "서울 3박 4일 여행",
       "status": "draft",
       "destination": "서울",
       "budget": 500000.00,
