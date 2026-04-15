@@ -71,7 +71,9 @@ class ChatRoomControllerTest {
                           "destination": "도쿄",
                           "startDate": "2026-05-01",
                           "endDate": "2026-05-03",
-                          "adultCount": 2
+                          "adultCount": 2,
+                          "childCount": 0,
+                          "childAges": []
                         }
                         """)
                 .exchange()
@@ -95,7 +97,9 @@ class ChatRoomControllerTest {
                           "destination": "도쿄",
                           "startDate": "2026-05-01",
                           "endDate": "2026-05-03",
-                          "adultCount": 2
+                          "adultCount": 2,
+                          "childCount": 0,
+                          "childAges": []
                         }
                         """)
                 .exchange()
