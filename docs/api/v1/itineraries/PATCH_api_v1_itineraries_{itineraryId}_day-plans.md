@@ -176,6 +176,16 @@
 }
 ```
 
+#### **3.6 사용자 없음 (404 Not Found)**
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "User not found. Please sign up first."
+}
+```
+
 ---
 
 ### **4. 비즈니스 로직 및 DB 스키마**
@@ -184,17 +194,18 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Validation**: 아래 항목을 순서대로 검증합니다. 위반 시 400을 반환합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+6. **Validation**: 아래 항목을 순서대로 검증합니다. 위반 시 400을 반환합니다.
    - 요청의 모든 날짜 키가 `startDate` ~ `endDate` 범위 안에 있는지 확인합니다.
    - 각 아이템에 `plan_name`, `time`, `place`, `status` 필드가 모두 포함되어 있는지 확인합니다.
    - 각 아이템의 `time`이 `"HH:MM ~ HH:MM"` 형식인지 확인합니다.
    - 각 아이템의 `status`가 `todo` / `done` 중 하나인지 확인합니다.
    - 동일 날짜 내 아이템들의 시간 범위가 겹치지 않는지 확인합니다.
-6. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
-7. **Update**: 기존 `day_plans`에서 요청에 포함된 날짜 키의 배열만 덮어씌웁니다. 각 날짜의 아이템 배열은 `time` 시작 시각 오름차순으로 정렬한 후 저장합니다. `updated_at`을 갱신합니다.
-8. **Response**: 갱신된 전체 `day_plans`를 반환합니다. `index`는 포함하지 않습니다.
+7. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
+8. **Update**: 기존 `day_plans`에서 요청에 포함된 날짜 키의 배열만 덮어씌웁니다. 각 날짜의 아이템 배열은 `time` 시작 시각 오름차순으로 정렬한 후 저장합니다. `updated_at`을 갱신합니다.
+9. **Response**: 갱신된 전체 `day_plans`를 반환합니다. `index`는 포함하지 않습니다.
 
 #### **4.2 DB 업데이트 구조**
 

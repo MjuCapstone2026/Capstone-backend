@@ -62,6 +62,17 @@
 }
 ```
 
+**응답 필드 설명** (`itineraries` 배열 아이템 필드)
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `itineraryId` | UUID | 일정 고유 ID (`itineraries.id`) |
+| `name` | String | 채팅방 이름 (`chat_rooms.name`) |
+| `status` | String | 일정 상태 (`draft` / `completed`) |
+| `destination` | String | 목적지 |
+| `totalDays` | Integer | 총 여행 일수 |
+| `startDate` | String (YYYY-MM-DD) | 여행 시작일 |
+
 #### **3.2 인증 실패 (401 Unauthorized)**
 
 - **Description**: JWT 토큰이 누락되었거나 만료, 서명 오류 등으로 유효하지 않은 경우입니다.

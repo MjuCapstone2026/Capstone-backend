@@ -62,6 +62,25 @@
     ```
 
 
+**응답 필드 설명**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `itineraryId` | UUID | 일정 고유 ID (`itineraries.id`) |
+| `name` | String | 채팅방 이름 (`chat_rooms.name`) |
+| `status` | String | 일정 상태 (`draft` / `completed`) |
+| `destination` | String | 목적지 |
+| `budget` | Number \| null | 예산. 미설정 시 `null` |
+| `adultCount` | Integer | 어른 수 |
+| `childCount` | Integer | 아이 수 |
+| `childAges` | Array | 아이 나이 목록 |
+| `totalDays` | Integer | 총 여행 일수 |
+| `startDate` | String (YYYY-MM-DD) | 여행 시작일 |
+| `endDate` | String (YYYY-MM-DD) | 여행 종료일 |
+| `dayPlans` | Object | 날짜별 일정 상세. 아이템은 `time` 오름차순 정렬, `index` 포함 |
+| `createdAt` | String (ISO 8601) | 일정 생성 일시 |
+| `updatedAt` | String (ISO 8601) | 마지막 수정 일시 |
+
 #### **3.2 인증 실패 (401 Unauthorized)**
 
 - **Description**: JWT 토큰이 누락되었거나 만료, 서명 오류 등으로 유효하지 않은 경우입니다.
@@ -100,6 +119,18 @@
     }
     ```
 
+#### **3.5 사용자 없음 (404 Not Found)**
+
+- **Description**: JWT는 유효하지만 서비스 DB에 해당 사용자가 존재하지 않는 경우입니다.
+
+    ```json
+    {
+      "status": 404,
+      "error": "Not Found",
+      "message": "User not found. Please sign up first."
+    }
+    ```
+
 
 ---
 
@@ -109,9 +140,10 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Response**: 조회한 일정 데이터와 Step 4에서 조인한 `chat_rooms.name`을 함께 반환합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+6. **Response**: 조회한 일정 데이터와 Step 5에서 조인한 `chat_rooms.name`을 함께 반환합니다.
 
 #### **4.2 DB 조회 구조**
 

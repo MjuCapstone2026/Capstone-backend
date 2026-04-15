@@ -51,6 +51,8 @@
 
 #### **3.1 성공 (200 OK)**
 
+- **Description**: 일정 아이템 상태가 성공적으로 변경되었습니다.
+
 ```json
 {
   "itineraryId": "aaa-111",
@@ -111,6 +113,16 @@
 }
 ```
 
+#### **3.7 사용자 없음 (404 Not Found)**
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "User not found. Please sign up first."
+}
+```
+
 ---
 
 ### **4. 비즈니스 로직 및 DB 스키마**
@@ -119,11 +131,12 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Validation**: 요청 body의 `status`가 `todo` / `done` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
-6. **Item Check**: `day_plans[date]` 배열을 `time`의 시작 시각 오름차순으로 정렬하여 `index`번째 아이템이 존재하는지 확인합니다. `date` 키가 없거나 `index`가 배열 길이 이상이면 404(`Item not found`)를 반환합니다.
-7. **Update**: 정렬된 배열의 `index`번째 아이템의 `status`를 요청값으로 변경합니다. 변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+6. **Validation**: 요청 body의 `status`가 `todo` / `done` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
+7. **Item Check**: `day_plans[date]` 배열을 `time`의 시작 시각 오름차순으로 정렬하여 `index`번째 아이템이 존재하는지 확인합니다. `date` 키가 없거나 `index`가 배열 길이 이상이면 404(`Item not found`)를 반환합니다.
+8. **Update**: 정렬된 배열의 `index`번째 아이템의 `status`를 요청값으로 변경합니다. 변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
 
 #### **4.2 `time` 필드 형식 및 정렬 기준**
 

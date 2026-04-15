@@ -76,6 +76,21 @@
     }
     ```
 
+**응답 필드 설명**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `itineraryId` | UUID | 일정 고유 ID |
+| `destination` | String | 목적지 (수정 불가, 기존값 그대로 반환) |
+| `startDate` | String (YYYY-MM-DD) | 여행 시작일 |
+| `endDate` | String (YYYY-MM-DD) | 여행 종료일 |
+| `totalDays` | Integer | 총 여행 일수 (`endDate - startDate + 1`) |
+| `budget` | Number \| null | 예산. 미설정 시 `null` |
+| `adultCount` | Integer | 어른 수 |
+| `childCount` | Integer | 아이 수 |
+| `childAges` | Array | 아이 나이 목록 |
+| `updatedAt` | String (ISO 8601) | 마지막 수정 일시 |
+
 > `budget`을 요청에 포함하지 않거나 `null`로 전달한 경우 기존 값이 유지됩니다. `budget`이 설정된 적 없는 일정은 `"budget": null`로 반환됩니다. `null`은 "사용자가 예산을 지정하지 않음"을 의미하며, AI 서버는 예산 제약 없이 일정을 생성합니다.
 
 
@@ -156,6 +171,18 @@
     }
     ```
 
+#### **3.6 사용자 없음 (404 Not Found)**
+
+- **Description**: JWT는 유효하지만 서비스 DB에 해당 사용자가 존재하지 않는 경우입니다.
+
+    ```json
+    {
+      "status": 404,
+      "error": "Not Found",
+      "message": "User not found. Please sign up first."
+    }
+    ```
+
 
 ---
 
@@ -165,17 +192,19 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Validation**: 아래 항목을 검증합니다. 위반 시 400을 반환합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+6. **Validation**: 아래 항목을 검증합니다. 위반 시 400을 반환합니다.
    - `startDate` / `endDate` 중 하나만 요청에 포함된 경우, 나머지는 DB의 기존값으로 대체하여 비교합니다. 유효한 `startDate`가 유효한 `endDate`보다 늦으면 400을 반환합니다.
    - `adultCount`가 1 미만이면 400을 반환합니다.
    - `childCount`와 `childAges` 중 하나만 요청에 포함된 경우 400을 반환합니다. `childAges`의 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
-6. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
-7. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
+7. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
+8. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
    - `startDate` / `endDate` 중 하나라도 변경된 경우 유효한 두 날짜로 `total_days`를 재계산합니다 (`endDate - startDate + 1`).
    - 날짜 범위가 **넓어진** 경우: 새로 추가된 날짜를 빈 배열(`[]`)로 `day_plans`에 추가합니다. (예: `"2026-05-04": []`)
    - 날짜 범위가 **좁아진** 경우: 범위 밖으로 잘린 날짜의 `day_plans` 항목을 삭제합니다.
+9. **Response**: 갱신된 일정 기본 정보를 반환합니다.
 
 #### **4.2 DB 업데이트 구조**
 

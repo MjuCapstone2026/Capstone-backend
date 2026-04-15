@@ -138,6 +138,16 @@
 }
 ```
 
+#### **3.5 사용자 없음 (404 Not Found)**
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "User not found. Please sign up first."
+}
+```
+
 ---
 
 ### **4. 비즈니스 로직 및 DB 스키마**
@@ -146,9 +156,10 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Response**: `itinerary_logs` 테이블에서 해당 `itinerary_id`의 로그를 `created_at` 오름차순으로 조회하여 반환합니다. 이력이 없으면 빈 배열을 반환합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+6. **Response**: `itinerary_logs` 테이블에서 해당 `itinerary_id`의 로그를 `created_at` 오름차순으로 조회하여 반환합니다. 이력이 없으면 빈 배열을 반환합니다.
 
 #### **4.2 DB 조회 구조**
 
