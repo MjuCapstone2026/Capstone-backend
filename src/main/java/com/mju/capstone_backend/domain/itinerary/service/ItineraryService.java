@@ -1,9 +1,14 @@
 package com.mju.capstone_backend.domain.itinerary.service;
 
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 public interface ItineraryService {
 
     Mono<GetItinerariesResponse> getItineraries(String clerkId);
+
+    Mono<GetItineraryResponse> getItinerary(String clerkId, UUID itineraryId);
 }
