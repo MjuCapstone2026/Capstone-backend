@@ -74,6 +74,18 @@
 }
 ```
 
+#### **3.3 사용자 없음 (404 Not Found)**
+
+- **Description**: JWT는 유효하지만 서비스 DB에 해당 사용자가 존재하지 않는 경우입니다.
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "User not found. Please sign up first."
+}
+```
+
 ---
 
 ### **4. 비즈니스 로직 및 DB 스키마**
@@ -82,9 +94,10 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Query**: `chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는 itineraries를 조회합니다. `chat_rooms.name`을 조인하여 함께 반환합니다.
-4. **Sort**: `status = draft` 우선, 동일 status 내 `start_date` 오름차순으로 정렬합니다.
-5. **Response**: 조회한 일정 목록을 반환합니다. 일정이 없는 경우 빈 배열을 반환합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id` 사용자가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Query**: `chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는 itineraries를 조회합니다. `chat_rooms.name`을 조인하여 함께 반환합니다.
+5. **Sort**: `status = draft` 우선, 동일 status 내 `start_date` 오름차순으로 정렬합니다.
+6. **Response**: 조회한 일정 목록을 반환합니다. 일정이 없는 경우 빈 배열을 반환합니다.
 
 #### **4.2 DB 조회 구조**
 

@@ -42,7 +42,7 @@
 | Field | Required | Type | Description |
 | --- | --- | --- | --- |
 | `date` | Y | string | 아이템이 속한 날짜 (YYYY-MM-DD) |
-| `index` | Y | integer | 해당 날짜 아이템을 `time` 오름차순으로 정렬했을 때의 순서 (0부터 시작). DB에 저장되지 않는 임시 위치값으로, GET 응답의 `day_plans[date][index]`와 대응됨 |
+| `index` | Y | integer | 해당 날짜 아이템을 `time`의 시작 시각 오름차순으로 정렬했을 때의 순서 (0부터 시작). GET 응답의 `day_plans[date][index]`와 대응됨 |
 | `status` | Y | string | 변경할 `day_plans` 아이템의 완료 여부. `todo`(예정) / `done`(완료) |
 
 ---
@@ -121,12 +121,18 @@
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
 3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
 4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Validation**: 요청 body의 `status`가 `day_plans` 아이템의 완료 여부를 나타내는 `todo` / `done` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
-6. **Item Check**: `day_plans[date]` 배열을 `time` 오름차순으로 정렬하여 `index`번째 아이템이 존재하는지 확인합니다. `date` 키가 없거나 `index`가 배열 길이 이상이면 404(`Item not found`)를 반환합니다.
-7. **Update**: 정렬된 배열의 `index`번째 아이템의 `day_plans[date][index].status`를 요청값으로 변경합니다.
-   변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
+5. **Validation**: 요청 body의 `status`가 `todo` / `done` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
+6. **Item Check**: `day_plans[date]` 배열을 `time`의 시작 시각 오름차순으로 정렬하여 `index`번째 아이템이 존재하는지 확인합니다. `date` 키가 없거나 `index`가 배열 길이 이상이면 404(`Item not found`)를 반환합니다.
+7. **Update**: 정렬된 배열의 `index`번째 아이템의 `status`를 요청값으로 변경합니다. 변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
 
-#### **4.2 DB 업데이트 구조**
+#### **4.2 `time` 필드 형식 및 정렬 기준**
+
+`day_plans` 내 각 아이템의 `time` 필드는 `"HH:MM ~ HH:MM"` 형식의 시간 범위입니다 (24시간제, 예: `"09:00 ~ 12:00"`).
+
+- **정렬 기준**: `time`의 시작 시각(첫 번째 `HH:MM`)을 기준으로 오름차순 정렬합니다.
+- **중복 보장**: 동일 날짜의 아이템은 시간 범위가 서로 겹치지 않음이 보장됩니다. (아이템 추가/수정 시 겹침 검증이 이루어집니다.) 따라서 시작 시각 기준 정렬은 항상 안정적이고 유일한 순서를 보장합니다.
+
+#### **4.3 DB 업데이트 구조**
 
 `day_plans` 전체를 덮어쓰지 않고 해당 아이템의 `status`만 변경합니다.
 
@@ -144,7 +150,7 @@ WHERE id = :itineraryId;
 
 `:updatedArray` = 백엔드에서 index번째 아이템 status 변경 후 직렬화한 배열.
 
-#### **4.3 스냅샷**
+#### **4.4 스냅샷**
 
 status 변경은 단순 체크/해제 액션이므로 `itinerary_logs` 스냅샷 저장 대상에서 제외합니다.
 

@@ -1,4 +1,4 @@
-## **[GET] api/v1/chat-rooms**
+## **[GET] /api/v1/chat-rooms**
 
 현재 로그인한 사용자의 채팅방 목록을 조회합니다.
 
@@ -9,7 +9,7 @@
 | 항목 | 내용                          |
 | --- |-----------------------------|
 | Method | `GET`                       |
-| URL | `api/v1/chat-rooms`         |
+| URL | `/api/v1/chat-rooms` |
 | Summary | 내 채팅방 목록 조회                 |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
@@ -142,6 +142,6 @@
 ### **5. 호출 예시 (Example)**
 
 ```bash
-curl -X GET https://your-api-domain.com/v1/chat-rooms \
+curl -X GET https://your-api-domain.com/api/v1/chat-rooms \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

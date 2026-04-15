@@ -50,8 +50,8 @@
 | `endDate` | N | DATE | 변경할 여행 종료일 |
 | `budget` | N | Decimal | 변경할 예산 |
 | `adultCount` | N | Int | 변경할 성인 수 (최솟값: 1) |
-| `childCount` | N | Int | 변경할 아이 수 (최솟값: 0) |
-| `childAges` | N | Int[] | 변경할 아이 나이 배열 (`childCount > 0`이면 필수, 배열 길이는 `childCount`와 일치해야 함) |
+| `childCount` | N | Int | 변경할 아이 수 (최솟값: 0). `childAges`와 항상 함께 전달해야 함 |
+| `childAges` | N | Int[] | 변경할 아이 나이 배열. `childCount`와 항상 함께 전달해야 함. 배열 길이는 `childCount`와 일치해야 하며, `childCount`가 0이면 빈 배열(`[]`) |
 
 ---
 
@@ -67,6 +67,7 @@
       "destination": "제주도",
       "startDate": "2026-05-01",
       "endDate": "2026-05-03",
+      "totalDays": 3,
       "budget": 300000,
       "adultCount": 2,
       "childCount": 1,
@@ -106,19 +107,41 @@
 
 #### **3.4 잘못된 요청 (400 Bad Request)**
 
-- **Description**: 다음 중 하나에 해당하는 경우입니다.
-  - 유효한 `startDate`와 `endDate`(요청값 또는 기존값)를 합산했을 때 `startDate`가 `endDate`보다 늦음
-  - `adultCount`가 1 미만
-  - `childCount`가 0 미만
-  - `childCount > 0`인데 `childAges` 누락 또는 배열 길이 불일치
+**`startDate`가 `endDate`보다 늦음** (요청값 또는 기존값과 비교)
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "startDate must not be later than endDate."
+}
+```
 
-    ```json
-    {
-      "status": 400,
-      "error": "Bad Request",
-      "message": "startDate must not be later than endDate."
-    }
-    ```
+**`adultCount`가 1 미만**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "adultCount must be at least 1."
+}
+```
+
+**`childCount`와 `childAges` 중 하나만 요청에 포함**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "childCount and childAges must be provided together."
+}
+```
+
+**`childAges` 배열 길이가 `childCount`와 불일치**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "childAges length must match childCount."
+}
+```
 
 
 #### **3.5 리소스 없음 (404 Not Found)**
@@ -146,8 +169,8 @@
 4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
 5. **Validation**: 아래 항목을 검증합니다. 위반 시 400을 반환합니다.
    - `startDate` / `endDate` 중 하나만 요청에 포함된 경우, 나머지는 DB의 기존값으로 대체하여 비교합니다. 유효한 `startDate`가 유효한 `endDate`보다 늦으면 400을 반환합니다.
-   - `adultCount`가 1 미만이거나 `childCount`가 0 미만이면 400을 반환합니다.
-   - `childCount > 0`인데 `childAges`가 누락되거나 `childAges`의 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
+   - `adultCount`가 1 미만이면 400을 반환합니다.
+   - `childCount`와 `childAges` 중 하나만 요청에 포함된 경우 400을 반환합니다. `childAges`의 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
 6. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
 7. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
    - `startDate` / `endDate` 중 하나라도 변경된 경우 유효한 두 날짜로 `total_days`를 재계산합니다 (`endDate - startDate + 1`).

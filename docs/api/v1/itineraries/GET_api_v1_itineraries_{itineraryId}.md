@@ -159,8 +159,8 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `index` | `integer` | - | 응답 시 백엔드에서 부여. DB 저장 안 함. 0부터 시작 |
-| `time` | `string` | Y | 일정 시작 시간 (HH:MM 24시간제) |
+| `index` | `integer` | - | 응답 시 백엔드에서 부여. DB 저장 안 함. `time` 시작 시각 오름차순 정렬 후 0부터 부여 |
+| `time` | `string` | Y | 일정 시간 범위. `"HH:MM ~ HH:MM"` 형식 (24시간제, 예: `"09:00 ~ 12:00"`). 동일 날짜 내 아이템 간 시간 범위는 겹치지 않아야 함 |
 | `plan_name` | `string` | Y | 일정 이름 |
 | `place` | `string` | Y | 장소명 |
 | `note` | `string` | N | 메모. 없으면 빈 문자열(`""`) |
