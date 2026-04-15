@@ -118,6 +118,7 @@ class ItineraryServiceImplTest {
                 "]}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 3박 4일 여행");
 
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
 
@@ -137,8 +138,20 @@ class ItineraryServiceImplTest {
     }
 
     @Test
+    @DisplayName("일정 상세 조회 - 존재하지 않는 사용자는 404 반환")
+    void getItinerary_userNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(itineraryService.getItinerary(CLERK_ID, ITINERARY_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
     @DisplayName("일정 상세 조회 - 존재하지 않는 일정은 404 반환")
     void getItinerary_notFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
 
         StepVerifier.create(itineraryService.getItinerary(CLERK_ID, ITINERARY_ID))
@@ -153,6 +166,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
 
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
 
