@@ -5,6 +5,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItemStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItemStatusResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
@@ -93,5 +95,16 @@ public class ItineraryController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return itineraryService.patchDayPlans(clerkId, itineraryId, request);
+    }
+
+    @Operation(summary = "일정 아이템 상태 변경", description = "사용자가 일정 아이템의 완료 여부를 체크/해제합니다. status 변경은 itinerary_logs 스냅샷 대상에서 제외됩니다.")
+    @PatchMapping("/{itineraryId}/items/status")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<PatchItemStatusResponse> patchItemStatus(
+            @PathVariable UUID itineraryId,
+            @RequestBody PatchItemStatusRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return itineraryService.patchItemStatus(clerkId, itineraryId, request);
     }
 }

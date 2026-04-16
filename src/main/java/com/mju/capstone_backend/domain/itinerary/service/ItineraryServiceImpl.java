@@ -9,6 +9,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItemStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItemStatusResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
@@ -489,6 +491,74 @@ public class ItineraryServiceImpl implements ItineraryService {
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update itinerary status.")
+                );
+    }
+
+    @Override
+    public Mono<PatchItemStatusResponse> patchItemStatus(String clerkId, UUID itineraryId, PatchItemStatusRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this itinerary.");
+            }
+
+            if (!"todo".equals(request.status()) && !"done".equals(request.status())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid status value. Must be 'todo' or 'done'.");
+            }
+
+            Map<String, List<Map<String, Object>>> dayPlans =
+                    objectMapper.readValue(itinerary.getDayPlans(), new TypeReference<>() {});
+
+            List<Map<String, Object>> dateItems = dayPlans.get(request.date());
+            if (dateItems == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
+            }
+
+            List<Map<String, Object>> sorted = new ArrayList<>(dateItems);
+            sorted.sort(Comparator.comparing(item ->
+                    LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])));
+
+            if (request.index() < 0 || request.index() >= sorted.size()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
+            }
+
+            Map<String, Object> targetItem = sorted.get(request.index());
+
+            if (request.status().equals(targetItem.get("status"))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted status is identical to the current status.");
+            }
+
+            Map<String, Object> updatedItem = new LinkedHashMap<>(targetItem);
+            updatedItem.put("status", request.status());
+            sorted.set(request.index(), updatedItem);
+
+            dayPlans.put(request.date(), sorted);
+            itinerary.updateDayPlans(objectMapper.writeValueAsString(dayPlans));
+            itineraryRepository.save(itinerary);
+
+            return new PatchItemStatusResponse(
+                    itinerary.getId(),
+                    request.date(),
+                    request.index(),
+                    request.status(),
+                    itinerary.getUpdatedAt()
+            );
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update item status.")
                 );
     }
 
