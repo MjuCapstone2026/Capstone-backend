@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
@@ -182,6 +183,91 @@ class ItineraryServiceImplTest {
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
 
         StepVerifier.create(itineraryService.getItinerary(CLERK_ID, ITINERARY_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == FORBIDDEN)
+                .verify();
+    }
+
+    // ─── getItineraryLogs ─────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("수정 이력 조회 - 이력이 있으면 createdAt 오름차순 목록 반환")
+    void getItineraryLogs_success() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        ItineraryLog log1 = mockItineraryLog(ITINERARY_ID, BigDecimal.valueOf(500000),
+                OffsetDateTime.parse("2026-04-03T20:00:00+00:00"));
+        ItineraryLog log2 = mockItineraryLog(ITINERARY_ID, BigDecimal.valueOf(600000),
+                OffsetDateTime.parse("2026-04-05T14:30:00+00:00"));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.findByItineraryIdOrderByCreatedAtDesc(ITINERARY_ID))
+                .thenReturn(List.of(log2, log1));
+
+        StepVerifier.create(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID))
+                .assertNext(res -> {
+                    assertThat(res.itineraryId()).isEqualTo(ITINERARY_ID);
+                    assertThat(res.logs()).hasSize(2);
+                    assertThat(res.logs().get(0).budget()).isEqualByComparingTo(BigDecimal.valueOf(600000));
+                    assertThat(res.logs().get(1).budget()).isEqualByComparingTo(BigDecimal.valueOf(500000));
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("수정 이력 조회 - 이력이 없으면 빈 배열 반환")
+    void getItineraryLogs_empty() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.findByItineraryIdOrderByCreatedAtDesc(ITINERARY_ID))
+                .thenReturn(List.of());
+
+        StepVerifier.create(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID))
+                .assertNext(res -> assertThat(res.logs()).isEmpty())
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("수정 이력 조회 - 존재하지 않는 사용자는 404 반환")
+    void getItineraryLogs_userNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("수정 이력 조회 - 존재하지 않는 일정은 404 반환")
+    void getItineraryLogs_itineraryNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("수정 이력 조회 - 다른 사용자의 일정 접근 시 403 반환")
+    void getItineraryLogs_otherUser_returns403() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
                         && rse.getStatusCode() == FORBIDDEN)
                 .verify();
@@ -714,6 +800,30 @@ class ItineraryServiceImplTest {
             throw new RuntimeException(e);
         }
         return itinerary;
+    }
+
+    private ItineraryLog mockItineraryLog(UUID itineraryId, BigDecimal budget, OffsetDateTime createdAt) {
+        Itinerary base = mockItinerary(UUID.randomUUID(), UUID.randomUUID(), "{}");
+        try {
+            var budgetField = Itinerary.class.getDeclaredField("budget");
+            budgetField.setAccessible(true);
+            budgetField.set(base, budget);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        ItineraryLog log = ItineraryLog.of(base);
+        try {
+            var idField = ItineraryLog.class.getDeclaredField("itineraryId");
+            idField.setAccessible(true);
+            idField.set(log, itineraryId);
+
+            var createdAtField = ItineraryLog.class.getDeclaredField("createdAt");
+            createdAtField.setAccessible(true);
+            createdAtField.set(log, createdAt);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return log;
     }
 
     private ChatRoom mockChatRoom(UUID id, String clerkId, String name) {

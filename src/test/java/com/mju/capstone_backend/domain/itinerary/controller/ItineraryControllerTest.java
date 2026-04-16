@@ -1,6 +1,7 @@
 package com.mju.capstone_backend.domain.itinerary.controller;
 
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
@@ -120,6 +121,56 @@ class ItineraryControllerTest {
         webTestClient
                 .get()
                 .uri("/api/v1/itineraries/{itineraryId}", ITINERARY_ID)
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    // ─── GET /api/v1/itineraries/{itineraryId}/logs ───────────────────────────
+
+    @Test
+    @DisplayName("수정 이력 조회 - 유효한 JWT로 200 반환")
+    void getItineraryLogs_withValidJwt_returns200() {
+        GetItineraryLogsResponse response = new GetItineraryLogsResponse(
+                ITINERARY_ID,
+                List.of(
+                        new GetItineraryLogsResponse.LogItem(
+                                UUID.randomUUID(), "서울",
+                                BigDecimal.valueOf(600000), 2, 1, List.of(5),
+                                4, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
+                                Map.of(), OffsetDateTime.now()
+                        ),
+                        new GetItineraryLogsResponse.LogItem(
+                                UUID.randomUUID(), "서울",
+                                BigDecimal.valueOf(500000), 2, 1, List.of(5),
+                                4, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
+                                Map.of(), OffsetDateTime.now().minusDays(2)
+                        )
+                )
+        );
+        when(itineraryService.getItineraryLogs(CLERK_ID, ITINERARY_ID)).thenReturn(Mono.just(response));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .get()
+                .uri("/api/v1/itineraries/{itineraryId}/logs", ITINERARY_ID)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.itineraryId").isEqualTo(ITINERARY_ID.toString())
+                .jsonPath("$.logs").isArray()
+                .jsonPath("$.logs[0].budget").isEqualTo(600000)
+                .jsonPath("$.logs[1].budget").isEqualTo(500000);
+
+        verify(itineraryService).getItineraryLogs(CLERK_ID, ITINERARY_ID);
+    }
+
+    @Test
+    @DisplayName("수정 이력 조회 - JWT 없이 요청 시 401 반환")
+    void getItineraryLogs_withoutJwt_returns401() {
+        webTestClient
+                .get()
+                .uri("/api/v1/itineraries/{itineraryId}/logs", ITINERARY_ID)
                 .exchange()
                 .expectStatus().isUnauthorized();
     }
