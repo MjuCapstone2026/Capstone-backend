@@ -6,6 +6,8 @@ import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
@@ -23,16 +25,21 @@ import reactor.core.scheduler.Scheduler;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ItineraryServiceImpl implements ItineraryService {
+
+    private static final Pattern TIME_RANGE_PATTERN =
+            Pattern.compile("^\\d{2}:\\d{2} ~ \\d{2}:\\d{2}$");
 
     private final UserRepository userRepository;
     private final ItineraryRepository itineraryRepository;
@@ -184,6 +191,150 @@ public class ItineraryServiceImpl implements ItineraryService {
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update itinerary.")
                 );
+    }
+
+    @Override
+    public Mono<PatchDayPlansResponse> patchDayPlans(String clerkId, UUID itineraryId, PatchDayPlansRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this itinerary.");
+            }
+
+            validateDayPlansRequest(request.dayPlans(), itinerary.getStartDate(), itinerary.getEndDate());
+
+            Map<String, List<Map<String, Object>>> existingDayPlans =
+                    objectMapper.readValue(itinerary.getDayPlans(), new TypeReference<>() {});
+
+            Map<String, List<Map<String, Object>>> merged = new LinkedHashMap<>(existingDayPlans);
+
+            for (Map.Entry<String, List<Map<String, Object>>> entry : request.dayPlans().entrySet()) {
+                List<Map<String, Object>> sorted = entry.getValue().stream()
+                        .map(item -> {
+                            Map<String, Object> normalized = new LinkedHashMap<>(item);
+                            normalized.putIfAbsent("note", "");
+                            return normalized;
+                        })
+                        .sorted(Comparator.comparing(item ->
+                                LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])))
+                        .toList();
+                merged.put(entry.getKey(), sorted);
+            }
+
+            Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+            merged.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> result.put(e.getKey(), e.getValue()));
+
+            boolean hasChanges = request.dayPlans().keySet().stream().anyMatch(date -> {
+                List<Map<String, Object>> newItems = result.get(date);
+                List<Map<String, Object>> currentItems = existingDayPlans.getOrDefault(date, List.of()).stream()
+                        .map(item -> {
+                            Map<String, Object> n = new LinkedHashMap<>(item);
+                            n.putIfAbsent("note", "");
+                            return n;
+                        })
+                        .sorted(Comparator.comparing(item ->
+                                LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])))
+                        .toList();
+                return !objectMapper.valueToTree(newItems).equals(objectMapper.valueToTree(currentItems));
+            });
+
+            if (!hasChanges) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted day plans are identical to the current data.");
+            }
+
+            itineraryLogRepository.save(ItineraryLog.of(itinerary));
+
+            itinerary.updateDayPlans(objectMapper.writeValueAsString(result));
+            itineraryRepository.save(itinerary);
+
+            return new PatchDayPlansResponse(itinerary.getId(), result, itinerary.getUpdatedAt());
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update day plans.")
+                );
+    }
+
+    private void validateDayPlansRequest(Map<String, List<Map<String, Object>>> dayPlans,
+                                          LocalDate rangeStart, LocalDate rangeEnd) {
+        for (Map.Entry<String, List<Map<String, Object>>> entry : dayPlans.entrySet()) {
+            String dateStr = entry.getKey();
+
+            LocalDate date;
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (DateTimeParseException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid date: '" + dateStr + "'. Use YYYY-MM-DD format (e.g. '2026-05-01').");
+            }
+
+            if (date.isBefore(rangeStart) || date.isAfter(rangeEnd)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Date '" + dateStr + "' is out of the itinerary date range.");
+            }
+
+            for (Map<String, Object> item : entry.getValue()) {
+                if (!item.containsKey("plan_name") || !item.containsKey("time")
+                        || !item.containsKey("place") || !item.containsKey("status")) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Each item must include plan_name, time, place, and status.");
+                }
+
+                String time = String.valueOf(item.get("time"));
+                if (!TIME_RANGE_PATTERN.matcher(time).matches()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Invalid time format. Use 'HH:MM ~ HH:MM' (e.g. '09:00 ~ 12:00').");
+                }
+                try {
+                    String[] parts = time.split(" ~ ");
+                    LocalTime.parse(parts[0]);
+                    LocalTime.parse(parts[1]);
+                } catch (DateTimeParseException e) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Invalid time format. Use 'HH:MM ~ HH:MM' (e.g. '09:00 ~ 12:00').");
+                }
+
+                String status = String.valueOf(item.get("status"));
+                if (!"todo".equals(status) && !"done".equals(status)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Item status must be 'todo' or 'done'.");
+                }
+            }
+
+            validateNoTimeOverlap(entry.getValue());
+        }
+    }
+
+    private void validateNoTimeOverlap(List<Map<String, Object>> items) {
+        if (items.size() < 2) return;
+
+        List<LocalTime[]> ranges = items.stream()
+                .map(item -> {
+                    String[] parts = String.valueOf(item.get("time")).split(" ~ ");
+                    return new LocalTime[]{LocalTime.parse(parts[0]), LocalTime.parse(parts[1])};
+                })
+                .sorted(Comparator.comparing(r -> r[0]))
+                .toList();
+
+        for (int i = 0; i < ranges.size() - 1; i++) {
+            if (ranges.get(i + 1)[0].isBefore(ranges.get(i)[1])) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Time ranges must not overlap within the same date.");
+            }
+        }
     }
 
     private String adjustDayPlans(String currentDayPlansJson, LocalDate newStart, LocalDate newEnd) {

@@ -105,6 +105,10 @@ public class Itinerary {
         if (updatedDayPlans != null) this.dayPlans = updatedDayPlans;
     }
 
+    public void updateDayPlans(String dayPlans) {
+        this.dayPlans = dayPlans;
+    }
+
     public static Itinerary of(UUID roomId, String destination, LocalDate startDate, LocalDate endDate,
                                BigDecimal budget, int adultCount, int childCount, List<Integer> childAges) {
         Itinerary itinerary = new Itinerary();
