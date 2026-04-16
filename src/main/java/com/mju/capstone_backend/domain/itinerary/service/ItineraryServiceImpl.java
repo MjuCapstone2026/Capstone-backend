@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.UUID;
 
@@ -155,6 +156,20 @@ public class ItineraryServiceImpl implements ItineraryService {
             if (hasChildCount && request.childAges().size() != request.childCount()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "childAges length must match childCount.");
+            }
+
+            boolean startDateUnchanged = request.startDate() == null || request.startDate().equals(itinerary.getStartDate());
+            boolean endDateUnchanged = request.endDate() == null || request.endDate().equals(itinerary.getEndDate());
+            boolean budgetUnchanged = request.budget() == null ||
+                    (itinerary.getBudget() != null && request.budget().compareTo(itinerary.getBudget()) == 0);
+            boolean adultCountUnchanged = request.adultCount() == null || request.adultCount() == itinerary.getAdultCount();
+            boolean childInfoUnchanged = !hasChildCount ||
+                    (request.childCount() == itinerary.getChildCount() &&
+                     Objects.equals(request.childAges(), itinerary.getChildAges()));
+
+            if (startDateUnchanged && endDateUnchanged && budgetUnchanged && adultCountUnchanged && childInfoUnchanged) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted values are identical to the current data.");
             }
 
             itineraryLogRepository.save(ItineraryLog.of(itinerary));

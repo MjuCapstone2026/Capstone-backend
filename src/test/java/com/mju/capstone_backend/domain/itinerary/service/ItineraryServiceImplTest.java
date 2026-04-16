@@ -338,6 +338,28 @@ class ItineraryServiceImplTest {
     }
 
     @Test
+    @DisplayName("기본 정보 수정 - 요청 필드가 모두 기존 값과 동일하면 400 반환")
+    void patchItinerary_noChanges_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[],\"2026-05-02\":[],\"2026-05-03\":[],\"2026-05-04\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        // 기존 값: startDate=2026-05-01, endDate=2026-05-04, budget=500000, adultCount=2
+        PatchItineraryRequest request = new PatchItineraryRequest(
+                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
+                BigDecimal.valueOf(500000), 2, null, null);
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("No changes detected"))
+                .verify();
+    }
+
+    @Test
     @DisplayName("기본 정보 수정 - 존재하지 않는 사용자는 404 반환")
     void patchItinerary_userNotFound_returns404() {
         when(userRepository.existsById(CLERK_ID)).thenReturn(false);
