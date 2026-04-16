@@ -2,6 +2,8 @@ package com.mju.capstone_backend.domain.itinerary.controller;
 
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.service.ItineraryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -116,6 +118,53 @@ class ItineraryControllerTest {
         webTestClient
                 .get()
                 .uri("/api/v1/itineraries/{itineraryId}", ITINERARY_ID)
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    // ─── PATCH /api/v1/itineraries/{itineraryId} ──────────────────────────────
+
+    @Test
+    @DisplayName("기본 정보 수정 - 유효한 JWT로 200 반환")
+    void patchItinerary_withValidJwt_returns200() {
+        PatchItineraryResponse response = new PatchItineraryResponse(
+                ITINERARY_ID, "서울",
+                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                3, BigDecimal.valueOf(300000),
+                2, 1, List.of(7),
+                OffsetDateTime.now()
+        );
+        PatchItineraryRequest request = new PatchItineraryRequest(
+                null, LocalDate.of(2026, 5, 3), BigDecimal.valueOf(300000), null, null, null);
+
+        when(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
+                .thenReturn(Mono.just(response));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/itineraries/{itineraryId}", ITINERARY_ID)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.itineraryId").isEqualTo(ITINERARY_ID.toString())
+                .jsonPath("$.totalDays").isEqualTo(3)
+                .jsonPath("$.destination").isEqualTo("서울");
+
+        verify(itineraryService).patchItinerary(CLERK_ID, ITINERARY_ID, request);
+    }
+
+    @Test
+    @DisplayName("기본 정보 수정 - JWT 없이 요청 시 401 반환")
+    void patchItinerary_withoutJwt_returns401() {
+        webTestClient
+                .patch()
+                .uri("/api/v1/itineraries/{itineraryId}", ITINERARY_ID)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("{}")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }
