@@ -1,6 +1,7 @@
 package com.mju.capstone_backend.domain.itinerary.controller;
 
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
@@ -47,6 +48,16 @@ public class ItineraryController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return itineraryService.getItinerary(clerkId, itineraryId);
+    }
+
+    @Operation(summary = "여행 일정 수정 이력 조회", description = "특정 여행 일정의 수정 이력(스냅샷) 목록을 오래된 순으로 반환합니다. 이력이 없으면 빈 배열을 반환합니다.")
+    @GetMapping("/{itineraryId}/logs")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<GetItineraryLogsResponse> getItineraryLogs(
+            @PathVariable UUID itineraryId,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return itineraryService.getItineraryLogs(clerkId, itineraryId);
     }
 
     @Operation(summary = "여행 기본 정보 수정", description = "여행 일정의 날짜·예산·인원 정보를 수정합니다. 변경 전 스냅샷이 itinerary_logs에 저장됩니다.")

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
@@ -115,6 +116,50 @@ public class ItineraryServiceImpl implements ItineraryService {
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch itinerary.")
+                );
+    }
+
+    @Override
+    public Mono<GetItineraryLogsResponse> getItineraryLogs(String clerkId, UUID itineraryId) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to access this itinerary.");
+            }
+
+            List<GetItineraryLogsResponse.LogItem> logItems = itineraryLogRepository
+                    .findByItineraryIdOrderByCreatedAtDesc(itineraryId)
+                    .stream()
+                    .map(log -> new GetItineraryLogsResponse.LogItem(
+                            log.getId(),
+                            log.getDestination(),
+                            log.getBudget(),
+                            log.getAdultCount(),
+                            log.getChildCount(),
+                            log.getChildAges(),
+                            log.getTotalDays(),
+                            log.getStartDate(),
+                            log.getEndDate(),
+                            parseDayPlansRaw(log.getDayPlans()),
+                            log.getCreatedAt()
+                    ))
+                    .toList();
+
+            return new GetItineraryLogsResponse(itineraryId, logItems);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch itinerary logs.")
                 );
     }
 
@@ -401,6 +446,14 @@ public class ItineraryServiceImpl implements ItineraryService {
                 result.put(entry.getKey(), indexed);
             }
             return result;
+        } catch (Exception e) {
+            return new LinkedHashMap<>();
+        }
+    }
+
+    private Map<String, Object> parseDayPlansRaw(String dayPlansJson) {
+        try {
+            return objectMapper.readValue(dayPlansJson, new TypeReference<>() {});
         } catch (Exception e) {
             return new LinkedHashMap<>();
         }
