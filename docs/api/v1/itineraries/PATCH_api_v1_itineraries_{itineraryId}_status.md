@@ -86,15 +86,23 @@
 
 #### **3.4 잘못된 요청 (400 Bad Request)**
 
-- **Description**: `status` 값이 허용된 값이 아닌 경우입니다.
+**`status` 값이 허용된 값이 아닌 경우**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "status must be one of: draft, completed."
+}
+```
 
-    ```json
-    {
-      "status": 400,
-      "error": "Bad Request",
-      "message": "status must be one of: draft, completed."
-    }
-    ```
+**요청 `status`가 기존 값과 동일한 경우**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "No changes detected. The submitted status is identical to the current status."
+}
+```
 
 
 #### **3.5 리소스 없음 (404 Not Found)**
@@ -134,7 +142,8 @@
 4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
 5. **Authorization Check**: 조회한 itinerary의 `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
 6. **Validation**: 요청 `status` 값이 `draft` / `completed` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
-7. **Update**: `itineraries.status` 및 `updated_at`을 업데이트합니다.
+7. **No Change Check**: 요청 `status`가 기존 `status`와 동일하면 400을 반환합니다.
+8. **Update**: `itineraries.status` 및 `updated_at`을 업데이트합니다.
 
 > `status`는 사용자가 카테고리 분류 목적으로 사용하는 값입니다. `completed` 여부는 다른 어떤 비즈니스 로직에도 영향을 주지 않으며, `completed` 상태인 일정도 기본 정보 수정·아이템 상태 변경 등 모든 수정이 허용됩니다.
 

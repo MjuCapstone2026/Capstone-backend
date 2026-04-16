@@ -158,6 +158,15 @@
 }
 ```
 
+**요청 필드가 모두 기존 값과 동일한 경우**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "No changes detected. The submitted values are identical to the current data."
+}
+```
+
 
 #### **3.5 리소스 없음 (404 Not Found)**
 
@@ -199,12 +208,13 @@
    - `startDate` / `endDate` 중 하나만 요청에 포함된 경우, 나머지는 DB의 기존값으로 대체하여 비교합니다. 유효한 `startDate`가 유효한 `endDate`보다 늦으면 400을 반환합니다.
    - `adultCount`가 1 미만이면 400을 반환합니다.
    - `childCount`와 `childAges` 중 하나만 요청에 포함된 경우 400을 반환합니다. `childAges`의 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
-7. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
-8. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
+7. **No Change Check**: 요청에 포함된 모든 필드가 기존 값과 동일하면 400을 반환합니다. `null` 필드는 "변경 없음"으로 취급합니다.
+8. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
+9. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
    - `startDate` / `endDate` 중 하나라도 변경된 경우 유효한 두 날짜로 `total_days`를 재계산합니다 (`endDate - startDate + 1`).
    - 날짜 범위가 **넓어진** 경우: 새로 추가된 날짜를 빈 배열(`[]`)로 `day_plans`에 추가합니다. (예: `"2026-05-04": []`)
    - 날짜 범위가 **좁아진** 경우: 범위 밖으로 잘린 날짜의 `day_plans` 항목을 삭제합니다.
-9. **Response**: 갱신된 일정 기본 정보를 반환합니다.
+10. **Response**: 갱신된 일정 기본 정보를 반환합니다.
 
 #### **4.2 DB 업데이트 구조**
 

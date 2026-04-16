@@ -85,11 +85,21 @@
 
 #### **3.4 잘못된 요청 (400 Bad Request)**
 
+**`status` 값이 허용된 값이 아닌 경우**
 ```json
 {
   "status": 400,
   "error": "Bad Request",
   "message": "Invalid status value. Must be 'todo' or 'done'."
+}
+```
+
+**요청 `status`가 해당 아이템의 기존 값과 동일한 경우**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "No changes detected. The submitted status is identical to the current status."
 }
 ```
 
@@ -136,7 +146,8 @@
 5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
 6. **Validation**: 요청 body의 `status`가 `todo` / `done` 중 하나인지 검증합니다. 아니면 400을 반환합니다.
 7. **Item Check**: `day_plans[date]` 배열을 `time`의 시작 시각 오름차순으로 정렬하여 `index`번째 아이템이 존재하는지 확인합니다. `date` 키가 없거나 `index`가 배열 길이 이상이면 404(`Item not found`)를 반환합니다.
-8. **Update**: 정렬된 배열의 `index`번째 아이템의 `status`를 요청값으로 변경합니다. 변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
+8. **No Change Check**: 해당 아이템의 기존 `status`가 요청 `status`와 동일하면 400을 반환합니다.
+9. **Update**: 정렬된 배열의 `index`번째 아이템의 `status`를 요청값으로 변경합니다. 변경된 배열을 `day_plans`에 다시 저장하고 `updated_at`을 갱신합니다.
 
 #### **4.2 `time` 필드 형식 및 정렬 기준**
 
