@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.ActiveProfiles;
@@ -42,7 +42,7 @@ class ChatRoomControllerTest {
     @Autowired
     private WebTestClient webTestClient;
 
-    @MockBean
+    @MockitoBean
     private ChatRoomService chatRoomService;
 
     private static final String CLERK_ID = "user_testClerkId";
@@ -55,7 +55,7 @@ class ChatRoomControllerTest {
     @DisplayName("채팅방 생성 - 유효한 JWT와 요청 본문으로 201 반환")
     void createChatRoom_withValidJwt_returns201() {
         CreateChatRoomResponse response = new CreateChatRoomResponse(
-                ROOM_ID, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                ROOM_ID, "2박 3일 도쿄 여행", ITINERARY_ID, CLERK_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(chatRoomService.createChatRoom(eq(CLERK_ID), any(CreateChatRoomRequest.class)))
                 .thenReturn(Mono.just(response));
@@ -71,7 +71,9 @@ class ChatRoomControllerTest {
                           "destination": "도쿄",
                           "startDate": "2026-05-01",
                           "endDate": "2026-05-03",
-                          "adultCount": 2
+                          "adultCount": 2,
+                          "childCount": 0,
+                          "childAges": []
                         }
                         """)
                 .exchange()
@@ -95,7 +97,9 @@ class ChatRoomControllerTest {
                           "destination": "도쿄",
                           "startDate": "2026-05-01",
                           "endDate": "2026-05-03",
-                          "adultCount": 2
+                          "adultCount": 2,
+                          "childCount": 0,
+                          "childAges": []
                         }
                         """)
                 .exchange()
@@ -139,7 +143,7 @@ class ChatRoomControllerTest {
     @DisplayName("채팅방 상세 조회 - 유효한 JWT로 200 반환")
     void getChatRoom_withValidJwt_returns200() {
         GetChatRoomResponse response = new GetChatRoomResponse(
-                ROOM_ID, null, null, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
+                ROOM_ID, "테스트 채팅방", CLERK_ID, null, null, ITINERARY_ID, OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(chatRoomService.getChatRoom(CLERK_ID, ROOM_ID)).thenReturn(Mono.just(response));
 

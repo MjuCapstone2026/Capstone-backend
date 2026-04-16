@@ -8,9 +8,9 @@ import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
-import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
-import com.mju.capstone_backend.domain.chatroom.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +76,7 @@ class ChatRoomServiceImplTest {
     void createChatRoom_success() {
         CreateChatRoomRequest request = new CreateChatRoomRequest(
                 "도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
-                BigDecimal.valueOf(500000), 2, 0, null
+                BigDecimal.valueOf(500000), 2, 0, List.of()
         );
 
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "2박 3일 도쿄 여행");
@@ -116,11 +116,11 @@ class ChatRoomServiceImplTest {
     }
 
     @Test
-    @DisplayName("채팅방 생성 - childCount > 0인데 childAges 누락 시 400 반환")
-    void createChatRoom_childAgesMissing_returns400() {
+    @DisplayName("채팅방 생성 - childAges 길이가 childCount와 불일치 시 400 반환")
+    void createChatRoom_childAgesMismatch_returns400() {
         CreateChatRoomRequest request = new CreateChatRoomRequest(
                 "도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
-                null, 1, 2, null   // childCount=2 이지만 childAges=null
+                null, 1, 2, List.of(5)   // childCount=2 이지만 childAges 길이=1
         );
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);

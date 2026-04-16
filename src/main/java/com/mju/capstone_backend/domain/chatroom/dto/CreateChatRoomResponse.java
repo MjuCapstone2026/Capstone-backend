@@ -5,7 +5,9 @@ import java.util.UUID;
 
 public record CreateChatRoomResponse(
         UUID roomId,
+        String name,
         UUID itineraryId,
+        String clerkId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

@@ -6,6 +6,8 @@ import java.util.UUID;
 
 public record GetChatRoomResponse(
         UUID roomId,
+        String name,
+        String clerkId,
         String aiSummary,
         Map<String, Object> preferences,
         UUID itineraryId,

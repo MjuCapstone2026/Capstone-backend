@@ -1,4 +1,4 @@
-## **[GET] api/v1/chat-rooms**
+## **[GET] /api/v1/chat-rooms**
 
 현재 로그인한 사용자의 채팅방 목록을 조회합니다.
 
@@ -9,7 +9,7 @@
 | 항목 | 내용                          |
 | --- |-----------------------------|
 | Method | `GET`                       |
-| URL | `api/v1/chat-rooms`         |
+| URL | `/api/v1/chat-rooms` |
 | Summary | 내 채팅방 목록 조회                 |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
@@ -45,6 +45,8 @@
   "rooms": [
     {
       "roomId": "9d12a7e5-2a7b-4e86-bf5c-2d1b50dcb1a4",
+      "name": "3박 4일 오사카 여행",
+      "clerkId": "user_2N...",
       "aiSummary": "오사카 3박 4일 여행 계획 중",
       "preferences": {
         "budget": "economy",
@@ -55,6 +57,8 @@
     },
     {
       "roomId": "15fdb4a4-7d9a-4b7c-9bcb-8d9a4f45be21",
+      "name": "1박 2일 부산 여행",
+      "clerkId": "user_2N...",
       "aiSummary": null,
       "preferences": null,
       "createdAt": "2026-04-02T14:30:00",
@@ -140,6 +144,6 @@
 ### **5. 호출 예시 (Example)**
 
 ```bash
-curl -X GET https://your-api-domain.com/v1/chat-rooms \
+curl -X GET https://your-api-domain.com/api/v1/chat-rooms \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

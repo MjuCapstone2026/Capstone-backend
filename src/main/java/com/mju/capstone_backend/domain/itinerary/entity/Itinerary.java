@@ -1,4 +1,4 @@
-package com.mju.capstone_backend.domain.chatroom.entity;
+package com.mju.capstone_backend.domain.itinerary.entity;
 
 import com.mju.capstone_backend.global.converter.IntegerListConverter;
 import jakarta.persistence.*;
@@ -32,10 +32,10 @@ public class Itinerary {
     @Column(name = "destination", nullable = false)
     private String destination;
 
-    @Column(name = "start_date")
+    @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column(name = "end_date")
+    @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
     @Column(name = "total_days", nullable = false)
@@ -65,8 +65,53 @@ public class Itinerary {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at", insertable = false, updatable = false)
+    @Column(name = "updated_at", insertable = false)
     private OffsetDateTime updatedAt;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    private static String buildInitialDayPlans(LocalDate startDate, LocalDate endDate) {
+        StringBuilder json = new StringBuilder("{");
+        LocalDate current = startDate;
+        boolean first = true;
+        while (!current.isAfter(endDate)) {
+            if (!first) json.append(",");
+            json.append("\"").append(current).append("\":[]");
+            current = current.plusDays(1);
+            first = false;
+        }
+        json.append("}");
+        return json.toString();
+    }
+
+    public void updateBasicInfo(LocalDate startDate, LocalDate endDate,
+                                BigDecimal budget, Integer adultCount,
+                                Integer childCount, List<Integer> childAges,
+                                String updatedDayPlans) {
+        if (startDate != null) this.startDate = startDate;
+        if (endDate != null) this.endDate = endDate;
+        if (startDate != null || endDate != null) {
+            this.totalDays = (int) ChronoUnit.DAYS.between(this.startDate, this.endDate) + 1;
+        }
+        if (budget != null) this.budget = budget;
+        if (adultCount != null) this.adultCount = adultCount;
+        if (childCount != null) {
+            this.childCount = childCount;
+            this.childAges = childAges;
+        }
+        if (updatedDayPlans != null) this.dayPlans = updatedDayPlans;
+    }
+
+    public void updateDayPlans(String dayPlans) {
+        this.dayPlans = dayPlans;
+    }
+
+    public void updateStatus(String status) {
+        this.status = status;
+    }
 
     public static Itinerary of(UUID roomId, String destination, LocalDate startDate, LocalDate endDate,
                                BigDecimal budget, int adultCount, int childCount, List<Integer> childAges) {
@@ -81,7 +126,7 @@ public class Itinerary {
         itinerary.childCount = childCount;
         itinerary.childAges = childAges;
         itinerary.status = "draft";
-        itinerary.dayPlans = "{}";
+        itinerary.dayPlans = buildInitialDayPlans(startDate, endDate);
         return itinerary;
     }
 }

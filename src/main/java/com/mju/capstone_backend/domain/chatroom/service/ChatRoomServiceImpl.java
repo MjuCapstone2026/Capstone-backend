@@ -9,9 +9,9 @@ import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
-import com.mju.capstone_backend.domain.chatroom.entity.Itinerary;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
-import com.mju.capstone_backend.domain.chatroom.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,12 +44,14 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
             }
 
-            int childCount = request.resolvedChildCount();
-            List<Integer> childAges = request.childAges();
-
-            if (childCount > 0 && (childAges == null || childAges.size() != childCount)) {
+            if (request.startDate().isAfter(request.endDate())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "childAges must be provided when childCount > 0.");
+                        "startDate must not be later than endDate.");
+            }
+
+            if (request.childAges().size() != request.childCount()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "childAges length must match childCount.");
             }
 
             long totalDays = ChronoUnit.DAYS.between(request.startDate(), request.endDate()) + 1;
@@ -65,14 +66,16 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                             request.endDate(),
                             request.budget(),
                             request.adultCount(),
-                            childCount,
-                            childAges != null ? childAges : Collections.emptyList()
+                            request.childCount(),
+                            request.childAges()
                     )
             );
 
             return new CreateChatRoomResponse(
                     chatRoom.getId(),
+                    chatRoom.getName(),
                     itinerary.getId(),
+                    chatRoom.getClerkId(),
                     chatRoom.getCreatedAt(),
                     chatRoom.getUpdatedAt()
             );
@@ -95,6 +98,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                     .stream()
                     .map(room -> new GetChatRoomsResponse.ChatRoomItem(
                             room.getId(),
+                            room.getName(),
+                            room.getClerkId(),
                             room.getAiSummary(),
                             parsePreferences(room.getPreferences()),
                             room.getCreatedAt(),
@@ -127,6 +132,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
             return new GetChatRoomResponse(
                     chatRoom.getId(),
+                    chatRoom.getName(),
+                    chatRoom.getClerkId(),
                     chatRoom.getAiSummary(),
                     parsePreferences(chatRoom.getPreferences()),
                     itineraryId,

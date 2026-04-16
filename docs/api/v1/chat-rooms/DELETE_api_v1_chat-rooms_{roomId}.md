@@ -1,4 +1,4 @@
-## **[DELETE] api/v1/chat-rooms/{roomId}**
+## **[DELETE] /api/v1/chat-rooms/{roomId}**
 
 현재 로그인한 사용자가 소유한 특정 채팅방을 삭제합니다.
 
@@ -11,7 +11,7 @@
 | 항목 | 내용                          |
 | --- |-----------------------------|
 | Method | `DELETE`                    |
-| URL | `api/v1/chat-rooms/{roomId}`  |
+| URL | `/api/v1/chat-rooms/{roomId}` |
 | Summary | 채팅방 삭제                      |
 | Authentication | Bearer JWT (Clerk 발급 토큰 필수) |
 
@@ -137,6 +137,6 @@
 ### **5. 호출 예시 (Example)**
 
 ```bash
-curl -X DELETE https://your-api-domain.com/v1/chat-rooms/{roomId} \
+curl -X DELETE https://your-api-domain.com/api/v1/chat-rooms/{roomId} \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

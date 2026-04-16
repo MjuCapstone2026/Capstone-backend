@@ -72,6 +72,6 @@ Clerk 인증 정보를 기반으로 서비스 데이터베이스에 사용자를
 ### 5. 호출 예시 (Example)
 
 ```bash
-curl -X POST https://your-api-domain.com/api/users/signup \
+curl -X POST https://your-api-domain.com/api/v1/users/signup \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

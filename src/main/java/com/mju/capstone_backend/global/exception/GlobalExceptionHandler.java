@@ -20,6 +20,8 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
     }
 
+    // 4xx, 5xx — ResponseStatusException을 명시적으로 throw한 경우 (상태코드는 throw 시점에 결정)
+    // throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid request") 와 같은 형식으로 Custom 예외처럼 사용 가능
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
