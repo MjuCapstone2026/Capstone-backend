@@ -65,8 +65,13 @@ public class Itinerary {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at", insertable = false, updatable = false)
+    @Column(name = "updated_at", insertable = false)
     private OffsetDateTime updatedAt;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
 
     private static String buildInitialDayPlans(LocalDate startDate, LocalDate endDate) {
         StringBuilder json = new StringBuilder("{");
@@ -80,6 +85,24 @@ public class Itinerary {
         }
         json.append("}");
         return json.toString();
+    }
+
+    public void updateBasicInfo(LocalDate startDate, LocalDate endDate,
+                                BigDecimal budget, Integer adultCount,
+                                Integer childCount, List<Integer> childAges,
+                                String updatedDayPlans) {
+        if (startDate != null) this.startDate = startDate;
+        if (endDate != null) this.endDate = endDate;
+        if (startDate != null || endDate != null) {
+            this.totalDays = (int) ChronoUnit.DAYS.between(this.startDate, this.endDate) + 1;
+        }
+        if (budget != null) this.budget = budget;
+        if (adultCount != null) this.adultCount = adultCount;
+        if (childCount != null) {
+            this.childCount = childCount;
+            this.childAges = childAges;
+        }
+        if (updatedDayPlans != null) this.dayPlans = updatedDayPlans;
     }
 
     public static Itinerary of(UUID roomId, String destination, LocalDate startDate, LocalDate endDate,

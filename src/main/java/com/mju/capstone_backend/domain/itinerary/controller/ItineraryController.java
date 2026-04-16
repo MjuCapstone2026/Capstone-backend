@@ -2,6 +2,8 @@ package com.mju.capstone_backend.domain.itinerary.controller;
 
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
 import com.mju.capstone_backend.domain.itinerary.service.ItineraryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,5 +45,16 @@ public class ItineraryController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return itineraryService.getItinerary(clerkId, itineraryId);
+    }
+
+    @Operation(summary = "여행 기본 정보 수정", description = "여행 일정의 날짜·예산·인원 정보를 수정합니다. 변경 전 스냅샷이 itinerary_logs에 저장됩니다.")
+    @PatchMapping("/{itineraryId}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<PatchItineraryResponse> patchItinerary(
+            @PathVariable UUID itineraryId,
+            @RequestBody PatchItineraryRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return itineraryService.patchItinerary(clerkId, itineraryId, request);
     }
 }
