@@ -7,6 +7,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusResponse;
 import com.mju.capstone_backend.domain.itinerary.service.ItineraryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,6 +71,17 @@ public class ItineraryController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return itineraryService.patchItinerary(clerkId, itineraryId, request);
+    }
+
+    @Operation(summary = "여행 일정 상태 변경", description = "여행 일정의 상태를 draft 또는 completed로 변경합니다.")
+    @PatchMapping("/{itineraryId}/status")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<PatchStatusResponse> patchStatus(
+            @PathVariable UUID itineraryId,
+            @RequestBody PatchStatusRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return itineraryService.patchStatus(clerkId, itineraryId, request);
     }
 
     @Operation(summary = "여행 일정 day_plans 수정", description = "날짜 단위로 일정 아이템을 추가·수정합니다. 요청에 포함된 날짜 키만 덮어씌우며, 변경 전 스냅샷이 itinerary_logs에 저장됩니다.")

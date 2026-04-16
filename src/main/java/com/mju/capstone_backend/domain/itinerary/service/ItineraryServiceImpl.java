@@ -11,6 +11,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusResponse;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
@@ -449,6 +451,45 @@ public class ItineraryServiceImpl implements ItineraryService {
         } catch (Exception e) {
             return new LinkedHashMap<>();
         }
+    }
+
+    @Override
+    public Mono<PatchStatusResponse> patchStatus(String clerkId, UUID itineraryId, PatchStatusRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this itinerary.");
+            }
+
+            if (!"draft".equals(request.status()) && !"completed".equals(request.status())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "status must be one of: draft, completed.");
+            }
+
+            if (request.status().equals(itinerary.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted status is identical to the current status.");
+            }
+
+            itinerary.updateStatus(request.status());
+            itineraryRepository.save(itinerary);
+
+            return new PatchStatusResponse(itinerary.getId(), itinerary.getStatus(), itinerary.getUpdatedAt());
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update itinerary status.")
+                );
     }
 
     private Map<String, Object> parseDayPlansRaw(String dayPlansJson) {

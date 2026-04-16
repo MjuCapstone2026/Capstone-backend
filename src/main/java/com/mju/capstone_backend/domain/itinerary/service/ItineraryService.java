@@ -7,6 +7,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusResponse;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -22,4 +24,6 @@ public interface ItineraryService {
     Mono<PatchItineraryResponse> patchItinerary(String clerkId, UUID itineraryId, PatchItineraryRequest request);
 
     Mono<PatchDayPlansResponse> patchDayPlans(String clerkId, UUID itineraryId, PatchDayPlansRequest request);
+
+    Mono<PatchStatusResponse> patchStatus(String clerkId, UUID itineraryId, PatchStatusRequest request);
 }

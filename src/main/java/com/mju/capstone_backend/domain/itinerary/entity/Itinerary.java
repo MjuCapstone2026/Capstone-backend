@@ -109,6 +109,10 @@ public class Itinerary {
         this.dayPlans = dayPlans;
     }
 
+    public void updateStatus(String status) {
+        this.status = status;
+    }
+
     public static Itinerary of(UUID roomId, String destination, LocalDate startDate, LocalDate endDate,
                                BigDecimal budget, int adultCount, int childCount, List<Integer> childAges) {
         Itinerary itinerary = new Itinerary();
