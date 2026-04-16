@@ -7,6 +7,8 @@ import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusResponse;
 import com.mju.capstone_backend.domain.itinerary.service.ItineraryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -269,6 +271,45 @@ class ItineraryControllerTest {
                 .uri("/api/v1/itineraries/{itineraryId}/day-plans", ITINERARY_ID)
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .bodyValue("{\"dayPlans\":{}}")
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    // ─── PATCH /api/v1/itineraries/{itineraryId}/status ──────────────────────
+
+    @Test
+    @DisplayName("상태 변경 - 유효한 JWT로 200 반환")
+    void patchStatus_withValidJwt_returns200() {
+        PatchStatusResponse response = new PatchStatusResponse(
+                ITINERARY_ID, "completed", OffsetDateTime.now());
+        PatchStatusRequest request = new PatchStatusRequest("completed");
+        when(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, request))
+                .thenReturn(Mono.just(response));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/itineraries/{itineraryId}/status", ITINERARY_ID)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.itineraryId").isEqualTo(ITINERARY_ID.toString())
+                .jsonPath("$.status").isEqualTo("completed");
+
+        verify(itineraryService).patchStatus(CLERK_ID, ITINERARY_ID, request);
+    }
+
+    @Test
+    @DisplayName("상태 변경 - JWT 없이 요청 시 401 반환")
+    void patchStatus_withoutJwt_returns401() {
+        webTestClient
+                .patch()
+                .uri("/api/v1/itineraries/{itineraryId}/status", ITINERARY_ID)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("{\"status\":\"completed\"}")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }

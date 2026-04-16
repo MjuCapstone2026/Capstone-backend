@@ -7,6 +7,7 @@ import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
@@ -765,6 +766,102 @@ class ItineraryServiceImplTest {
 
         StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID,
                         new PatchDayPlansRequest(Map.of())))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == FORBIDDEN)
+                .verify();
+    }
+
+    // ─── patchStatus ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("상태 변경 - 정상 요청 시 변경된 상태 반환")
+    void patchStatus_success() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("completed")))
+                .assertNext(res -> {
+                    assertThat(res.itineraryId()).isEqualTo(ITINERARY_ID);
+                    assertThat(res.status()).isEqualTo("completed");
+                })
+                .verifyComplete();
+
+        verify(itineraryRepository).save(itinerary);
+    }
+
+    @Test
+    @DisplayName("상태 변경 - 허용되지 않는 status 값이면 400 반환")
+    void patchStatus_invalidStatus_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("invalid")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("status must be one of"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("상태 변경 - 기존 status와 동일하면 400 반환")
+    void patchStatus_noChanges_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}"); // 기존 status = "draft"
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("draft")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("No changes detected"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("상태 변경 - 존재하지 않는 사용자는 404 반환")
+    void patchStatus_userNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("completed")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("상태 변경 - 존재하지 않는 일정은 404 반환")
+    void patchStatus_itineraryNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("completed")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("상태 변경 - 다른 사용자의 일정 수정 시 403 반환")
+    void patchStatus_otherUser_returns403() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("completed")))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
                         && rse.getStatusCode() == FORBIDDEN)
                 .verify();
