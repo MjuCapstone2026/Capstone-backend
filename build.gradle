@@ -18,6 +18,7 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	mockitoAgent
 }
 
 repositories {
@@ -39,6 +40,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	mockitoAgent('org.mockito:mockito-core') { transitive = false }
 	testImplementation 'io.projectreactor:reactor-test'
 
 	implementation 'org.flywaydb:flyway-core'
@@ -56,6 +58,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}",
+			"-XX:+EnableDynamicAgentLoading",
+			"-Xshare:off"
 
 	// 테스트 로그 수준 설정
 	testLogging {
