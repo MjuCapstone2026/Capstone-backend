@@ -506,7 +506,7 @@ class ItineraryServiceImplTest {
         Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
                 "2026-05-01", List.of(
                         Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
-                                "place", "경복궁", "note", "", "status", "todo")
+                                "place", "경복궁", "note", "")
                 )
         );
         PatchDayPlansRequest request = new PatchDayPlansRequest(requestDayPlans);
@@ -542,8 +542,8 @@ class ItineraryServiceImplTest {
 
         Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
                 "2026-05-01", List.of(
-                        Map.of("plan_name", "저녁", "time", "18:00 ~ 20:00", "place", "식당", "status", "todo"),
-                        Map.of("plan_name", "아침", "time", "08:00 ~ 09:00", "place", "카페", "status", "todo")
+                        Map.of("plan_name", "저녁", "time", "18:00 ~ 20:00", "place", "식당"),
+                        Map.of("plan_name", "아침", "time", "08:00 ~ 09:00", "place", "카페")
                 )
         );
         PatchDayPlansRequest request = new PatchDayPlansRequest(requestDayPlans);
@@ -629,7 +629,7 @@ class ItineraryServiceImplTest {
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchDayPlansRequest request = new PatchDayPlansRequest(
                 Map.of("2026-05-01", List.of(
-                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00") // place, status 누락
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00") // place 누락
                 )));
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
@@ -664,24 +664,45 @@ class ItineraryServiceImplTest {
     }
 
     @Test
-    @DisplayName("day_plans 수정 - status 값 오류 시 400 반환")
-    void patchDayPlans_invalidStatus_returns400() {
-        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+    @DisplayName("day_plans 수정 - 기존 아이템과 time이 일치하면 기존 status 이어받음")
+    void patchDayPlans_preservesExistingStatus() {
+        // DB: 경복궁 done, 광장시장 todo
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"done\"}," +
+                "{\"plan_name\":\"광장시장\",\"time\":\"12:00 ~ 14:00\",\"place\":\"광장시장\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
-        PatchDayPlansRequest request = new PatchDayPlansRequest(
-                Map.of("2026-05-01", List.of(
-                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
-                                "place", "경복궁", "status", "pending") // 잘못된 status
-                )));
+
+        // 요청: 경복궁 plan_name 수정 + 남산타워 신규 추가 (status 필드 없음)
+        PatchDayPlansRequest request = new PatchDayPlansRequest(Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁 재방문", "time", "09:00 ~ 12:00", "place", "경복궁", "note", ""),
+                        Map.of("plan_name", "광장시장", "time", "12:00 ~ 14:00", "place", "광장시장", "note", ""),
+                        Map.of("plan_name", "남산타워", "time", "15:00 ~ 17:00", "place", "남산타워", "note", "")
+                )
+        ));
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
 
         StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
-                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
-                        && rse.getStatusCode() == BAD_REQUEST)
-                .verify();
+                .assertNext(res -> {
+                    List<Map<String, Object>> items = res.dayPlans().get("2026-05-01");
+                    assertThat(items).hasSize(3);
+                    // 경복궁: time 일치 → done 유지
+                    assertThat(items.get(0).get("plan_name")).isEqualTo("경복궁 재방문");
+                    assertThat(items.get(0).get("status")).isEqualTo("done");
+                    // 광장시장: time 일치 → todo 유지
+                    assertThat(items.get(1).get("status")).isEqualTo("todo");
+                    // 남산타워: 신규 → todo 기본값
+                    assertThat(items.get(2).get("plan_name")).isEqualTo("남산타워");
+                    assertThat(items.get(2).get("status")).isEqualTo("todo");
+                })
+                .verifyComplete();
     }
 
     @Test
@@ -691,8 +712,8 @@ class ItineraryServiceImplTest {
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchDayPlansRequest request = new PatchDayPlansRequest(
                 Map.of("2026-05-01", List.of(
-                        Map.of("plan_name", "A", "time", "09:00 ~ 13:00", "place", "A", "status", "todo"),
-                        Map.of("plan_name", "B", "time", "12:00 ~ 14:00", "place", "B", "status", "todo")
+                        Map.of("plan_name", "A", "time", "09:00 ~ 13:00", "place", "A"),
+                        Map.of("plan_name", "B", "time", "12:00 ~ 14:00", "place", "B")
                 )));
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
@@ -740,7 +761,7 @@ class ItineraryServiceImplTest {
         PatchDayPlansRequest request = new PatchDayPlansRequest(Map.of(
                 "2026-05-01", List.of(
                         Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
-                                "place", "경복궁", "note", "", "status", "todo")
+                                "place", "경복궁", "note", "")
                 )
         ));
 

@@ -242,7 +242,7 @@ class ItineraryControllerTest {
         PatchDayPlansRequest request = new PatchDayPlansRequest(
                 Map.of("2026-05-01", List.of(
                         Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
-                                "place", "경복궁", "note", "", "status", "todo")
+                                "place", "경복궁", "note", "")
                 ))
         );
 

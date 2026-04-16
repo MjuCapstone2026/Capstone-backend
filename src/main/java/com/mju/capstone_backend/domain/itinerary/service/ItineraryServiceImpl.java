@@ -283,10 +283,20 @@ public class ItineraryServiceImpl implements ItineraryService {
             Map<String, List<Map<String, Object>>> merged = new LinkedHashMap<>(existingDayPlans);
 
             for (Map.Entry<String, List<Map<String, Object>>> entry : request.dayPlans().entrySet()) {
+                List<Map<String, Object>> existingItems = existingDayPlans.getOrDefault(entry.getKey(), List.of());
+                Map<String, String> existingStatusByTime = new LinkedHashMap<>();
+                for (Map<String, Object> item : existingItems) {
+                    existingStatusByTime.put((String) item.get("time"),
+                            (String) item.getOrDefault("status", "todo"));
+                }
+
                 List<Map<String, Object>> sorted = entry.getValue().stream()
                         .map(item -> {
                             Map<String, Object> normalized = new LinkedHashMap<>(item);
                             normalized.putIfAbsent("note", "");
+                            normalized.remove("status");
+                            normalized.put("status", existingStatusByTime.getOrDefault(
+                                    (String) item.get("time"), "todo"));
                             return normalized;
                         })
                         .sorted(Comparator.comparing(item ->
@@ -352,9 +362,9 @@ public class ItineraryServiceImpl implements ItineraryService {
 
             for (Map<String, Object> item : entry.getValue()) {
                 if (!item.containsKey("plan_name") || !item.containsKey("time")
-                        || !item.containsKey("place") || !item.containsKey("status")) {
+                        || !item.containsKey("place")) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Each item must include plan_name, time, place, and status.");
+                            "Each item must include plan_name, time, and place.");
                 }
 
                 String time = String.valueOf(item.get("time"));
@@ -369,12 +379,6 @@ public class ItineraryServiceImpl implements ItineraryService {
                 } catch (DateTimeParseException e) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Invalid time format. Use 'HH:MM ~ HH:MM' (e.g. '09:00 ~ 12:00').");
-                }
-
-                String status = String.valueOf(item.get("status"));
-                if (!"todo".equals(status) && !"done".equals(status)) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Item status must be 'todo' or 'done'.");
                 }
             }
 
