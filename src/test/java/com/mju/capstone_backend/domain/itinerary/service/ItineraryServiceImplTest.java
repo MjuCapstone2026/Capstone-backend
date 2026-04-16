@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
@@ -26,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -377,6 +379,284 @@ class ItineraryServiceImplTest {
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
 
         StepVerifier.create(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == FORBIDDEN)
+                .verify();
+    }
+
+    // ─── patchDayPlans ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("day_plans 수정 - 정상 요청 시 병합된 전체 dayPlans 반환")
+    void patchDayPlans_success() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[],\"2026-05-02\":[],\"2026-05-03\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
+                                "place", "경복궁", "note", "", "status", "todo")
+                )
+        );
+        PatchDayPlansRequest request = new PatchDayPlansRequest(requestDayPlans);
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .assertNext(res -> {
+                    assertThat(res.itineraryId()).isEqualTo(ITINERARY_ID);
+                    assertThat(res.dayPlans()).containsKey("2026-05-01");
+                    assertThat(res.dayPlans()).containsKey("2026-05-02");
+                    assertThat(res.dayPlans()).containsKey("2026-05-03");
+                    assertThat(res.dayPlans().get("2026-05-01")).hasSize(1);
+                    assertThat(res.dayPlans().get("2026-05-01").get(0).get("plan_name")).isEqualTo("경복궁");
+                    assertThat(res.dayPlans().get("2026-05-02")).isEmpty();
+                })
+                .verifyComplete();
+
+        verify(itineraryLogRepository).save(any(ItineraryLog.class));
+        verify(itineraryRepository).save(itinerary);
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 여러 아이템이 time 오름차순으로 정렬되어 저장됨")
+    void patchDayPlans_itemsSortedByTime() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "저녁", "time", "18:00 ~ 20:00", "place", "식당", "status", "todo"),
+                        Map.of("plan_name", "아침", "time", "08:00 ~ 09:00", "place", "카페", "status", "todo")
+                )
+        );
+        PatchDayPlansRequest request = new PatchDayPlansRequest(requestDayPlans);
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .assertNext(res -> {
+                    List<Map<String, Object>> items = res.dayPlans().get("2026-05-01");
+                    assertThat(items.get(0).get("plan_name")).isEqualTo("아침");
+                    assertThat(items.get(1).get("plan_name")).isEqualTo("저녁");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 빈 배열 전달 시 해당 날짜 아이템 전체 삭제")
+    void patchDayPlans_emptyArray_clearsDate() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        PatchDayPlansRequest request = new PatchDayPlansRequest(Map.of("2026-05-01", List.of()));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .assertNext(res -> assertThat(res.dayPlans().get("2026-05-01")).isEmpty())
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 일정 범위 밖 날짜는 400 반환")
+    void patchDayPlans_dateOutOfRange_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        // Itinerary의 startDate=2026-05-01, endDate=2026-05-04
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-05-10", List.of()));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("is out of the itinerary date range"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 존재하지 않는 날짜(2026-02-31)는 별도 400 반환")
+    void patchDayPlans_nonExistentDate_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-02-31", List.of()));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("Invalid date"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 필수 필드 누락 시 400 반환")
+    void patchDayPlans_missingRequiredField_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00") // place, status 누락
+                )));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - time 형식 오류 시 400 반환")
+    void patchDayPlans_invalidTimeFormat_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "9:00~12:00",
+                                "place", "경복궁", "status", "todo")
+                )));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - status 값 오류 시 400 반환")
+    void patchDayPlans_invalidStatus_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
+                                "place", "경복궁", "status", "pending") // 잘못된 status
+                )));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 동일 날짜 내 시간 겹침 시 400 반환")
+    void patchDayPlans_timeOverlap_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchDayPlansRequest request = new PatchDayPlansRequest(
+                Map.of("2026-05-01", List.of(
+                        Map.of("plan_name", "A", "time", "09:00 ~ 13:00", "place", "A", "status", "todo"),
+                        Map.of("plan_name", "B", "time", "12:00 ~ 14:00", "place", "B", "status", "todo")
+                )));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 존재하지 않는 사용자는 404 반환")
+    void patchDayPlans_userNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID,
+                        new PatchDayPlansRequest(Map.of())))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 존재하지 않는 일정은 404 반환")
+    void patchDayPlans_itineraryNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID,
+                        new PatchDayPlansRequest(Map.of())))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 기존 데이터와 동일한 내용 전달 시 400 반환")
+    void patchDayPlans_noChanges_returns400() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
+                "{\"2026-05-01\":[{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        PatchDayPlansRequest request = new PatchDayPlansRequest(Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00",
+                                "place", "경복궁", "note", "", "status", "todo")
+                )
+        ));
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, request))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("No changes detected"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - 다른 사용자의 일정 수정 시 403 반환")
+    void patchDayPlans_otherUser_returns403() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID,
+                        new PatchDayPlansRequest(Map.of())))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
                         && rse.getStatusCode() == FORBIDDEN)
                 .verify();
