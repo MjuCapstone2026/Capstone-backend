@@ -6,6 +6,7 @@ import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.PatchItemStatusRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchItineraryRequest;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchStatusRequest;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
@@ -862,6 +863,183 @@ class ItineraryServiceImplTest {
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
 
         StepVerifier.create(itineraryService.patchStatus(CLERK_ID, ITINERARY_ID, new PatchStatusRequest("completed")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == FORBIDDEN)
+                .verify();
+    }
+
+    // ─── patchItemStatus ─────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 정상 요청 시 변경된 상태 반환")
+    void patchItemStatus_success() {
+        String dayPlansJson = "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}";
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, dayPlansJson);
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchItemStatusRequest request = new PatchItemStatusRequest("2026-05-01", 0, "done");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID, request))
+                .assertNext(res -> {
+                    assertThat(res.itineraryId()).isEqualTo(ITINERARY_ID);
+                    assertThat(res.date()).isEqualTo("2026-05-01");
+                    assertThat(res.index()).isEqualTo(0);
+                    assertThat(res.status()).isEqualTo("done");
+                })
+                .verifyComplete();
+
+        verify(itineraryRepository).save(itinerary);
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 여러 아이템 중 time 오름차순 정렬 기준으로 index 적용")
+    void patchItemStatus_correctIndexAfterSort() {
+        // DB에 저장된 순서: 12:00짜리가 먼저, 09:00짜리가 나중 → 정렬 후 index 0 = 09:00 아이템
+        String dayPlansJson = "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"점심\",\"time\":\"12:00 ~ 14:00\",\"place\":\"식당\",\"note\":\"\",\"status\":\"todo\"}," +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}";
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, dayPlansJson);
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+        PatchItemStatusRequest request = new PatchItemStatusRequest("2026-05-01", 0, "done");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID, request))
+                .assertNext(res -> {
+                    assertThat(res.index()).isEqualTo(0);
+                    assertThat(res.status()).isEqualTo("done");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 허용되지 않는 status 값이면 400 반환")
+    void patchItemStatus_invalidStatus_returns400() {
+        String dayPlansJson = "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}";
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, dayPlansJson);
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 0, "pending")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("Invalid status value"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 존재하지 않는 날짜면 404 반환")
+    void patchItemStatus_dateNotFound_returns404() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-02", 0, "done")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND
+                        && rse.getReason().contains("Item not found"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - index가 배열 길이 이상이면 404 반환")
+    void patchItemStatus_indexOutOfRange_returns404() {
+        String dayPlansJson = "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}";
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, dayPlansJson);
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 5, "done")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND
+                        && rse.getReason().contains("Item not found"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 기존 status와 동일하면 400 반환")
+    void patchItemStatus_noChanges_returns400() {
+        String dayPlansJson = "{\"2026-05-01\":[" +
+                "{\"plan_name\":\"경복궁\",\"time\":\"09:00 ~ 12:00\",\"place\":\"경복궁\",\"note\":\"\",\"status\":\"todo\"}" +
+                "]}";
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, dayPlansJson);
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 0, "todo")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == BAD_REQUEST
+                        && rse.getReason().contains("No changes detected"))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 존재하지 않는 사용자는 404 반환")
+    void patchItemStatus_userNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 0, "done")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 존재하지 않는 일정은 404 반환")
+    void patchItemStatus_itineraryNotFound_returns404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 0, "done")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("아이템 상태 변경 - 다른 사용자의 일정 수정 시 403 반환")
+    void patchItemStatus_otherUser_returns403() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+
+        StepVerifier.create(itineraryService.patchItemStatus(CLERK_ID, ITINERARY_ID,
+                        new PatchItemStatusRequest("2026-05-01", 0, "done")))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
                         && rse.getStatusCode() == FORBIDDEN)
                 .verify();
