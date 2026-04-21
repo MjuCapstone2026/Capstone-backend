@@ -3,6 +3,8 @@ package com.mju.capstone_backend.domain.reservation.controller;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
 import com.mju.capstone_backend.domain.reservation.service.ReservationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -284,6 +286,99 @@ class ReservationControllerTest {
                 .bodyValue(buildRequestBody())
                 .exchange()
                 .expectStatus().isForbidden();
+    }
+
+    // ─── PATCH /api/v1/reservations/{reservationId} ───────────────────────────
+
+    @Test
+    @DisplayName("예약 수정 - 유효한 JWT + 정상 body - 200 반환 및 응답 확인")
+    void updateReservation_withValidJwt_returns200() {
+        PatchReservationResponse response = new PatchReservationResponse(
+                RESERVATION_ID, "cancelled", OffsetDateTime.now()
+        );
+        when(reservationService.updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class)))
+                .thenReturn(Mono.just(response));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("status", "cancelled", "cancelledAt", "2026-04-10T10:00:00+09:00"))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.reservationId").isEqualTo(RESERVATION_ID.toString())
+                .jsonPath("$.status").isEqualTo("cancelled");
+
+        verify(reservationService).updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class));
+    }
+
+    @Test
+    @DisplayName("예약 수정 - JWT 없이 요청 시 401 반환")
+    void updateReservation_withoutJwt_returns401() {
+        webTestClient
+                .patch()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("status", "cancelled"))
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    @Test
+    @DisplayName("예약 수정 - 존재하지 않는 예약 - 404 반환")
+    void updateReservation_reservationNotFound_returns404() {
+        when(reservationService.updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class)))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Reservation not found.")));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("status", "cancelled"))
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+    @Test
+    @DisplayName("예약 수정 - 다른 사용자의 예약 - 403 반환")
+    void updateReservation_notOwner_returns403() {
+        when(reservationService.updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class)))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this reservation.")));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("status", "cancelled"))
+                .exchange()
+                .expectStatus().isForbidden();
+    }
+
+    @Test
+    @DisplayName("예약 수정 - 빈 body - 400 반환")
+    void updateReservation_emptyBody_returns400() {
+        when(reservationService.updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class)))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "At least one field must be provided.")));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .patch()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of())
+                .exchange()
+                .expectStatus().isBadRequest();
     }
 
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
