@@ -8,6 +8,8 @@ import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
 import com.mju.capstone_backend.domain.reservation.entity.Reservation;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
@@ -22,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -118,6 +121,54 @@ public class ReservationServiceImpl implements ReservationService {
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create reservation.")
+                );
+    }
+
+    @Override
+    public Mono<PatchReservationResponse> updateReservation(String clerkId, UUID reservationId, PatchReservationRequest request) {
+        return Mono.fromCallable(() -> {
+            if (request.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one field must be provided.");
+            }
+
+            if (request.status() != null && !VALID_STATUSES.contains(request.status())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "status must be one of: confirmed, changed, cancelled.");
+            }
+
+            Reservation reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            Itinerary itinerary = itineraryRepository.findById(reservation.getItineraryId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            var chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this reservation.");
+            }
+
+            String detailJson = request.detail() != null
+                    ? objectMapper.writeValueAsString(request.detail())
+                    : null;
+
+            reservation.update(
+                    request.status(),
+                    detailJson,
+                    request.totalPrice(),
+                    request.currency(),
+                    request.reservedAt(),
+                    request.cancelledAt()
+            );
+
+            Reservation saved = reservationRepository.save(reservation);
+            return PatchReservationResponse.from(saved);
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update reservation.")
                 );
     }
 

@@ -79,6 +79,16 @@ public class Reservation {
         return r;
     }
 
+    public void update(String status, String detail, BigDecimal totalPrice,
+                       String currency, OffsetDateTime reservedAt, OffsetDateTime cancelledAt) {
+        if (status != null) this.status = status;
+        if (detail != null) this.detail = detail;
+        if (totalPrice != null) this.totalPrice = totalPrice;
+        if (currency != null) this.currency = currency;
+        if (reservedAt != null) this.reservedAt = reservedAt;
+        if (cancelledAt != null) this.cancelledAt = cancelledAt;
+    }
+
     @PreUpdate
     void onUpdate() {
         this.updatedAt = OffsetDateTime.now();

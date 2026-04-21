@@ -3,6 +3,8 @@ package com.mju.capstone_backend.domain.reservation.controller;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
+import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
 import com.mju.capstone_backend.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Tag(name = "Reservation API", description = "예약 관련 API")
 @RestController
@@ -40,5 +44,16 @@ public class ReservationController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return reservationService.createReservation(clerkId, request);
+    }
+
+    @Operation(summary = "예약 수정", description = "예약 상태, detail, 가격 등을 수정합니다.")
+    @PatchMapping("/{reservationId}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<PatchReservationResponse> updateReservation(
+            @PathVariable UUID reservationId,
+            @RequestBody PatchReservationRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return reservationService.updateReservation(clerkId, reservationId, request);
     }
 }
