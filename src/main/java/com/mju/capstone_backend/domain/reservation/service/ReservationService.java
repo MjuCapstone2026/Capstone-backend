@@ -16,4 +16,6 @@ public interface ReservationService {
     Mono<CreateReservationResponse> createReservation(String clerkId, CreateReservationRequest request);
 
     Mono<PatchReservationResponse> updateReservation(String clerkId, UUID reservationId, PatchReservationRequest request);
+
+    Mono<Void> deleteReservation(String clerkId, UUID reservationId);
 }

@@ -172,6 +172,32 @@ public class ReservationServiceImpl implements ReservationService {
                 );
     }
 
+    @Override
+    public Mono<Void> deleteReservation(String clerkId, UUID reservationId) {
+        return Mono.fromCallable(() -> {
+            Reservation reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            Itinerary itinerary = itineraryRepository.findById(reservation.getItineraryId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            var chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to delete this reservation.");
+            }
+
+            reservationRepository.delete(reservation);
+            return null;
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete reservation.")
+                ).then();
+    }
+
     private Map<String, Object> parseDetail(Reservation reservation) {
         try {
             return objectMapper.readValue(reservation.getDetail(), new TypeReference<>() {});

@@ -56,4 +56,14 @@ public class ReservationController {
         String clerkId = authentication.getToken().getSubject();
         return reservationService.updateReservation(clerkId, reservationId, request);
     }
+
+    @Operation(summary = "예약 삭제", description = "예약 레코드를 완전히 삭제합니다.")
+    @DeleteMapping("/{reservationId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteReservation(
+            @PathVariable UUID reservationId,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return reservationService.deleteReservation(clerkId, reservationId);
+    }
 }
