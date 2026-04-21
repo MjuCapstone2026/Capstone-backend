@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -38,6 +40,7 @@ public class Reservation {
     @Column(name = "external_ref_id")
     private String externalRefId;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "detail", columnDefinition = "jsonb", nullable = false)
     private String detail;
 
@@ -56,6 +59,28 @@ public class Reservation {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at", insertable = false, updatable = false)
+    @Column(name = "updated_at", insertable = false)
     private OffsetDateTime updatedAt;
+
+    public static Reservation of(UUID itineraryId, String type, String status, String bookedBy,
+                                 String bookingUrl, String externalRefId, String detail,
+                                 BigDecimal totalPrice, String currency, OffsetDateTime reservedAt) {
+        Reservation r = new Reservation();
+        r.itineraryId = itineraryId;
+        r.type = type;
+        r.status = status;
+        r.bookedBy = bookedBy;
+        r.bookingUrl = bookingUrl;
+        r.externalRefId = externalRefId;
+        r.detail = detail;
+        r.totalPrice = totalPrice;
+        r.currency = currency;
+        r.reservedAt = reservedAt;
+        return r;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
 }
