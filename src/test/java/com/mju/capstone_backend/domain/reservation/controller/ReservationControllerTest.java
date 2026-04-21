@@ -381,6 +381,67 @@ class ReservationControllerTest {
                 .expectStatus().isBadRequest();
     }
 
+    // ─── DELETE /api/v1/reservations/{reservationId} ─────────────────────────
+
+    @Test
+    @DisplayName("예약 삭제 - 유효한 JWT - 204 반환")
+    void deleteReservation_withValidJwt_returns204() {
+        when(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .thenReturn(Mono.empty());
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .delete()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .exchange()
+                .expectStatus().isNoContent();
+
+        verify(reservationService).deleteReservation(CLERK_ID, RESERVATION_ID);
+    }
+
+    @Test
+    @DisplayName("예약 삭제 - JWT 없이 요청 시 401 반환")
+    void deleteReservation_withoutJwt_returns401() {
+        webTestClient
+                .delete()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    @Test
+    @DisplayName("예약 삭제 - 존재하지 않는 예약 - 404 반환")
+    void deleteReservation_reservationNotFound_returns404() {
+        when(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Reservation not found.")));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .delete()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+    @Test
+    @DisplayName("예약 삭제 - 다른 사용자의 예약 - 403 반환")
+    void deleteReservation_notOwner_returns403() {
+        when(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to delete this reservation.")));
+
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockJwt()
+                        .jwt(jwt -> jwt.subject(CLERK_ID)))
+                .delete()
+                .uri("/api/v1/reservations/" + RESERVATION_ID)
+                .exchange()
+                .expectStatus().isForbidden();
+    }
+
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
 
     private Map<String, Object> buildRequestBody() {

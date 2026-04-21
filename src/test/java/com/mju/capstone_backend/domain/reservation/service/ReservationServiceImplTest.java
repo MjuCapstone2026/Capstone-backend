@@ -358,6 +358,62 @@ class ReservationServiceImplTest {
         verify(reservationRepository).save(mockReservation);
     }
 
+    // ─── deleteReservation ────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("예약 삭제 - 존재하지 않는 예약 - 404 예외")
+    void deleteReservation_reservationNotFound_throws404() {
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.NOT_FOUND
+                        && rse.getReason().equals("Reservation not found."))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("예약 삭제 - 다른 사용자의 예약 - 403 예외")
+    void deleteReservation_notOwner_throws403() {
+        Reservation mockReservation = mock(Reservation.class);
+        when(mockReservation.getItineraryId()).thenReturn(ITINERARY_ID);
+        Itinerary mockItinerary = mock(Itinerary.class);
+        when(mockItinerary.getRoomId()).thenReturn(ROOM_ID);
+        ChatRoom otherChatRoom = mock(ChatRoom.class);
+        when(otherChatRoom.getClerkId()).thenReturn("user_otherClerkId");
+
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(mockReservation));
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(mockItinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(otherChatRoom));
+
+        StepVerifier.create(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.FORBIDDEN)
+                .verify();
+
+        verify(reservationRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("예약 삭제 - 정상 요청 - delete 호출 후 완료")
+    void deleteReservation_success_completesAndCallsDelete() {
+        Reservation mockReservation = mock(Reservation.class);
+        when(mockReservation.getItineraryId()).thenReturn(ITINERARY_ID);
+        Itinerary mockItinerary = mock(Itinerary.class);
+        when(mockItinerary.getRoomId()).thenReturn(ROOM_ID);
+        ChatRoom mockChatRoom = mock(ChatRoom.class);
+        when(mockChatRoom.getClerkId()).thenReturn(CLERK_ID);
+
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(mockReservation));
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(mockItinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(mockChatRoom));
+
+        StepVerifier.create(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                .verifyComplete();
+
+        verify(reservationRepository).delete(mockReservation);
+    }
+
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
 
     private CreateReservationRequest buildCreateRequest(String type, String bookedBy) {
