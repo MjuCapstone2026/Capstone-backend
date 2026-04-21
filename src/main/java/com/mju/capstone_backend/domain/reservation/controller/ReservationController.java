@@ -1,9 +1,12 @@
 package com.mju.capstone_backend.domain.reservation.controller;
 
+import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
+import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
 import com.mju.capstone_backend.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -27,5 +30,15 @@ public class ReservationController {
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return reservationService.getReservations(clerkId, type, status);
+    }
+
+    @Operation(summary = "예약 생성", description = "AI Agent가 예약 링크 제공 시 예약 레코드를 생성합니다.")
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<CreateReservationResponse> createReservation(
+            @Valid @RequestBody CreateReservationRequest request,
+            JwtAuthenticationToken authentication) {
+        String clerkId = authentication.getToken().getSubject();
+        return reservationService.createReservation(clerkId, request);
     }
 }
