@@ -2,6 +2,11 @@ package com.mju.capstone_backend.domain.reservation.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
+import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.entity.Reservation;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
@@ -21,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +41,12 @@ class ReservationServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
+    private ItineraryRepository itineraryRepository;
+
+    @Mock
+    private ChatRoomRepository chatRoomRepository;
+
+    @Mock
     private ReservationRepository reservationRepository;
 
     @Mock
@@ -44,6 +56,8 @@ class ReservationServiceImplTest {
     private ReservationServiceImpl reservationService;
 
     private static final String CLERK_ID = "user_testClerkId";
+    private static final UUID ITINERARY_ID = UUID.randomUUID();
+    private static final UUID ROOM_ID = UUID.randomUUID();
 
     @BeforeEach
     void injectScheduler() throws Exception {
@@ -143,7 +157,132 @@ class ReservationServiceImplTest {
                 .verifyComplete();
     }
 
+    // ─── createReservation: 사용자/파라미터 검증 ──────────────────────────────
+
+    @Test
+    @DisplayName("예약 생성 - 존재하지 않는 사용자 - 404 예외")
+    void createReservation_userNotFound_throws404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(false);
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("flight", "ai")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.NOT_FOUND)
+                .verify();
+
+        verify(itineraryRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("예약 생성 - 잘못된 type - 400 예외")
+    void createReservation_invalidType_throws400() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("train", "ai")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.BAD_REQUEST
+                        && rse.getReason().equals("type must be one of: flight, accommodation, car_rental."))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("예약 생성 - 잘못된 bookedBy - 400 예외")
+    void createReservation_invalidBookedBy_throws400() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("flight", "bot")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.BAD_REQUEST
+                        && rse.getReason().equals("bookedBy must be one of: user, ai."))
+                .verify();
+    }
+
+    // ─── createReservation: 소유권 검증 ──────────────────────────────────────
+
+    @Test
+    @DisplayName("예약 생성 - 존재하지 않는 itinerary - 404 예외")
+    void createReservation_itineraryNotFound_throws404() {
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("flight", "ai")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.NOT_FOUND
+                        && rse.getReason().equals("Itinerary not found."))
+                .verify();
+    }
+
+    @Test
+    @DisplayName("예약 생성 - 다른 사용자의 itinerary - 403 예외")
+    void createReservation_notOwner_throws403() {
+        Itinerary mockItinerary = mock(Itinerary.class);
+        when(mockItinerary.getRoomId()).thenReturn(ROOM_ID);
+        ChatRoom otherChatRoom = mock(ChatRoom.class);
+        when(otherChatRoom.getClerkId()).thenReturn("user_otherClerkId");
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(mockItinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(otherChatRoom));
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("flight", "ai")))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == HttpStatus.FORBIDDEN)
+                .verify();
+    }
+
+    // ─── createReservation: 정상 생성 ────────────────────────────────────────
+
+    @Test
+    @DisplayName("예약 생성 - 정상 요청 - 생성된 예약 반환")
+    void createReservation_success_returnsResponse() throws Exception {
+        Itinerary mockItinerary = mock(Itinerary.class);
+        when(mockItinerary.getRoomId()).thenReturn(ROOM_ID);
+        ChatRoom mockChatRoom = mock(ChatRoom.class);
+        when(mockChatRoom.getClerkId()).thenReturn(CLERK_ID);
+        Reservation mockReservation = mock(Reservation.class);
+        when(mockReservation.getId()).thenReturn(UUID.randomUUID());
+        when(mockReservation.getItineraryId()).thenReturn(ITINERARY_ID);
+        when(mockReservation.getType()).thenReturn("flight");
+        when(mockReservation.getStatus()).thenReturn("confirmed");
+        when(mockReservation.getCreatedAt()).thenReturn(OffsetDateTime.now());
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(mockItinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(mockChatRoom));
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"airline\":\"대한항공\"}");
+        when(reservationRepository.save(any())).thenReturn(mockReservation);
+
+        StepVerifier.create(reservationService.createReservation(CLERK_ID, buildCreateRequest("flight", "ai")))
+                .assertNext(response -> {
+                    assertThat(response.reservationId()).isNotNull();
+                    assertThat(response.type()).isEqualTo("flight");
+                    assertThat(response.status()).isEqualTo("confirmed");
+                })
+                .verifyComplete();
+
+        verify(reservationRepository).save(any());
+    }
+
     // ─── 헬퍼 ────────────────────────────────────────────────────────────────
+
+    private CreateReservationRequest buildCreateRequest(String type, String bookedBy) {
+        return new CreateReservationRequest(
+                ITINERARY_ID,
+                type,
+                bookedBy,
+                "https://booking.example.com/flight/123",
+                "KE12345678",
+                Map.of("airline", "대한항공", "flight_no", "KE123"),
+                new BigDecimal("320000"),
+                "KRW",
+                OffsetDateTime.now()
+        );
+    }
+
+    private Itinerary buildMockItinerary() {
+        Itinerary itinerary = mock(Itinerary.class);
+        when(itinerary.getRoomId()).thenReturn(ROOM_ID);
+        return itinerary;
+    }
 
     private Reservation buildMockReservation(String type, String status) {
         Reservation r = mock(Reservation.class);
