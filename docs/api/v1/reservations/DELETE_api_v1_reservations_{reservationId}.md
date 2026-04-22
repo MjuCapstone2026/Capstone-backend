@@ -1,6 +1,6 @@
 ## **[DELETE] /api/v1/reservations/{reservationId}**
 
-예약 레코드를 완전히 삭제합니다.
+예약 레코드를 완전히 삭제합니다. (데이터 Hard Delete)
 
 ---
 
