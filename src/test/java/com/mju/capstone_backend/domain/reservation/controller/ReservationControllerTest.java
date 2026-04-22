@@ -197,7 +197,8 @@ class ReservationControllerTest {
     @DisplayName("예약 생성 - 유효한 JWT + 정상 body - 201 반환 및 응답 확인")
     void createReservation_withValidJwt_returns201() {
         CreateReservationResponse response = new CreateReservationResponse(
-                RESERVATION_ID, ITINERARY_ID, "flight", "confirmed", OffsetDateTime.now()
+                RESERVATION_ID, ITINERARY_ID, "flight", "confirmed",
+                OffsetDateTime.now(), OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(reservationService.createReservation(eq(CLERK_ID), any(CreateReservationRequest.class)))
                 .thenReturn(Mono.just(response));
