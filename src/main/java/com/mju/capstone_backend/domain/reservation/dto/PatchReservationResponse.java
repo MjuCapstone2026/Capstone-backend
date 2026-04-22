@@ -1,20 +1,13 @@
 package com.mju.capstone_backend.domain.reservation.dto;
 
-import com.mju.capstone_backend.domain.reservation.entity.Reservation;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import java.time.OffsetDateTime;
-import java.util.UUID;
-
-public record PatchReservationResponse(
-        UUID reservationId,
-        String status,
-        OffsetDateTime updatedAt
-) {
-    public static PatchReservationResponse from(Reservation reservation) {
-        return new PatchReservationResponse(
-                reservation.getId(),
-                reservation.getStatus(),
-                reservation.getUpdatedAt()
-        );
-    }
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonSubTypes({
+        @JsonSubTypes.Type(CancelReservationResponse.class),
+        @JsonSubTypes.Type(ChangeReservationResponse.class)
+})
+public sealed interface PatchReservationResponse
+        permits CancelReservationResponse, ChangeReservationResponse {
 }

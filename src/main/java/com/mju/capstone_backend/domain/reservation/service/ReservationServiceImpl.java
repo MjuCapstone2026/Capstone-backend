@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.reservation.dto.CancelReservationResponse;
+import com.mju.capstone_backend.domain.reservation.dto.ChangeReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.DeleteReservationResponse;
@@ -129,14 +131,14 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     public Mono<PatchReservationResponse> updateReservation(String clerkId, UUID reservationId, PatchReservationRequest request) {
-        return Mono.fromCallable(() -> {
+        return Mono.<PatchReservationResponse>fromCallable(() -> {
             if (request.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one field must be provided.");
             }
 
             if (request.status() != null && !VALID_STATUSES.contains(request.status())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "status must be one of: confirmed, changed, cancelled.");
+                        "status must be one of: changed, cancelled.");
             }
 
             Reservation reservation = reservationRepository.findById(reservationId)
@@ -151,6 +153,22 @@ public class ReservationServiceImpl implements ReservationService {
             if (!chatRoom.getClerkId().equals(clerkId)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                         "You do not have permission to update this reservation.");
+            }
+
+            if ("cancelled".equals(reservation.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot update a reservation that has already been cancelled.");
+            }
+
+            if ("cancelled".equals(request.status()) && request.cancelledAt() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "cancelledAt is required when status is cancelled.");
+            }
+
+            if ("changed".equals(request.status())
+                    && (request.detail() == null || request.reservedAt() == null)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "detail, reservedAt are required when status is changed.");
             }
 
             if (request.detail() != null) {
@@ -171,7 +189,9 @@ public class ReservationServiceImpl implements ReservationService {
             );
 
             Reservation saved = reservationRepository.save(reservation);
-            return PatchReservationResponse.from(saved);
+            return "cancelled".equals(request.status())
+                    ? CancelReservationResponse.from(saved)
+                    : ChangeReservationResponse.from(saved);
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
@@ -224,7 +244,8 @@ public class ReservationServiceImpl implements ReservationService {
 
     private void requireKeys(Map<String, Object> detail, String type, String... keys) {
         for (String key : keys) {
-            if (!detail.containsKey(key) || detail.get(key) == null) {
+            Object val = detail.get(key);
+            if (!detail.containsKey(key) || val == null || (val instanceof String s && s.isBlank())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "detail." + key + " is required for type '" + type + "'.");
             }
@@ -240,7 +261,8 @@ public class ReservationServiceImpl implements ReservationService {
         }
         Map<String, Object> nested = (Map<String, Object>) parentVal;
         for (String key : keys) {
-            if (!nested.containsKey(key) || nested.get(key) == null) {
+            Object val = nested.get(key);
+            if (!nested.containsKey(key) || val == null || (val instanceof String s && s.isBlank())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "detail." + parent + "." + key + " is required for type '" + type + "'.");
             }
@@ -255,12 +277,16 @@ public class ReservationServiceImpl implements ReservationService {
         }
         for (int i = 0; i < list.size(); i++) {
             if (!(list.get(i) instanceof Map<?, ?> passenger)
-                    || !passenger.containsKey("name") || passenger.get("name") == null
-                    || !passenger.containsKey("passport") || passenger.get("passport") == null) {
+                    || isBlankValue(passenger.get("name"))
+                    || isBlankValue(passenger.get("passport"))) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "detail.passengers[" + i + "] must include name and passport.");
             }
         }
+    }
+
+    private boolean isBlankValue(Object val) {
+        return val == null || (val instanceof String s && s.isBlank());
     }
 
     private Map<String, Object> parseDetail(Reservation reservation) {
