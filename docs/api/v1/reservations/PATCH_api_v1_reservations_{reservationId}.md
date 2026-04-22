@@ -163,6 +163,23 @@
         }
         ```
         
+    - `detail` 제공 시 예약 `type`에 맞는 필수 키가 누락된 경우 (type별 필수 필드는 POST 명세의 **4.2** 참고):
+
+      | 케이스 | message |
+      | --- | --- |
+      | `detail` 필수 키 누락 | `detail.{field} is required for type '{type}'.` |
+      | `detail` 중첩 필수 키 누락 | `detail.{parent}.{field} is required for type '{type}'.` |
+      | `passengers` 빈 배열 또는 비리스트 | `detail.passengers must be a non-empty array for type 'flight'.` |
+      | `passengers[n]` name/passport 누락 | `detail.passengers[n] must include name and passport.` |
+
+        ```json
+        {
+          "status": 400,
+          "error": "Bad Request",
+          "message": "detail.departure.airport is required for type 'flight'."
+        }
+        ```
+        
 
 ### **3.5 리소스 없음 (404 Not Found)**
 
@@ -190,7 +207,8 @@
 5. **Validation**: `status` 값이 `cancelled` / `changed` 중 하나인지 확인합니다. 아니면 400을 반환합니다.
     - `status: cancelled` → `cancelledAt` 필수 확인. 누락 시 400 반환.
     - `status: changed` → `detail`, `totalPrice`, `reservedAt` 필수 확인. 누락 시 400 반환.
-6. **Update**: 요청에 포함된 필드만 업데이트하고 `updated_at`을 갱신합니다.
+6. **Detail Validation**: `detail`이 포함된 경우, 기존 예약의 `type`에 따라 필수 키를 검증합니다. 누락된 키가 있으면 400을 반환합니다.
+7. **Update**: 요청에 포함된 필드만 업데이트하고 `updated_at`을 갱신합니다.
 
 ### **4.2 DB 업데이트 구조 (reservations Table)**
 
