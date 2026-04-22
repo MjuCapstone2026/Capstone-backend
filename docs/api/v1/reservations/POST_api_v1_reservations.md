@@ -108,12 +108,21 @@
 ### **3.4 잘못된 요청 (400 Bad Request)**
 
 - **Description**: 필수 필드가 누락되었거나 허용되지 않은 값인 경우입니다.
-    
+
+  | 케이스 | message |
+  | --- | --- |
+  | `type` 허용값 위반 | `type must be one of: flight, accommodation, car_rental.` |
+  | `bookedBy` 허용값 위반 | `bookedBy must be one of: user, ai.` |
+  | `detail` 필수 키 누락 | `detail.{field} is required for type '{type}'.` |
+  | `detail` 중첩 필수 키 누락 | `detail.{parent}.{field} is required for type '{type}'.` |
+  | `passengers` 빈 배열 또는 비리스트 | `detail.passengers must be a non-empty array for type 'flight'.` |
+  | `passengers[n]` name/passport 누락 | `detail.passengers[n] must include name and passport.` |
+
     ```json
     {
       "status": 400,
       "error": "Bad Request",
-      "message": "type must be one of: flight, accommodation, car_rental."
+      "message": "detail.departure.airport is required for type 'flight'."
     }
     ```
     
@@ -142,9 +151,47 @@
 3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
 4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
 5. **Validation**: `type`, `bookedBy` 값이 허용된 값인지 검증합니다. 허용되지 않은 값이면 400을 반환합니다.
-6. **Insert**: `reservations` 테이블에 레코드를 생성합니다. `status`는 `confirmed`로 초기화합니다.
+6. **Detail Validation**: `type`에 따라 `detail` 필수 키를 검증합니다. 누락된 키가 있으면 400을 반환합니다.
+7. **Insert**: `reservations` 테이블에 레코드를 생성합니다. `status`는 `confirmed`로 초기화합니다.
 
-### **4.2 DB 저장 구조 (reservations Table)**
+### **4.2 detail 필수 필드 (type별)**
+
+**flight**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `airline` | String | 항공사명 |
+| `flight_no` | String | 편명 |
+| `departure.airport` | String | 출발 공항 코드 |
+| `departure.datetime` | String | 출발 일시 |
+| `arrival.airport` | String | 도착 공항 코드 |
+| `arrival.datetime` | String | 도착 일시 |
+| `seat_class` | String | 좌석 등급 |
+| `passengers[].name` | String | 탑승객 이름 |
+| `passengers[].passport` | String | 탑승객 여권번호 |
+
+**accommodation**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `hotel_name` | String | 숙소명 |
+| `room_type` | String | 객실 유형 |
+| `check_in` | String | 체크인 날짜 |
+| `check_out` | String | 체크아웃 날짜 |
+| `guests` | Number | 투숙 인원 |
+
+**car_rental**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `company` | String | 렌터카 업체명 |
+| `car_model` | String | 차량 모델 |
+| `pickup.location` | String | 픽업 장소 |
+| `pickup.datetime` | String | 픽업 일시 |
+| `dropoff.location` | String | 반납 장소 |
+| `dropoff.datetime` | String | 반납 일시 |
+
+### **4.3 DB 저장 구조 (reservations Table)**
 
 | Column | Type | Description |
 | --- | --- | --- |
