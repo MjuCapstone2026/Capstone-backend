@@ -35,6 +35,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     private static final Set<String> VALID_TYPES = Set.of("flight", "accommodation", "car_rental");
     private static final Set<String> VALID_STATUSES = Set.of("confirmed", "changed", "cancelled");
+    private static final Set<String> VALID_PATCH_STATUSES = Set.of("changed", "cancelled");
     private static final Set<String> VALID_BOOKED_BY = Set.of("user", "ai");
 
     private final UserRepository userRepository;
@@ -71,7 +72,7 @@ public class ReservationServiceImpl implements ReservationService {
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch reservations.")
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to get reservations.")
                 );
     }
 
@@ -96,7 +97,7 @@ public class ReservationServiceImpl implements ReservationService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
 
             var chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Related chat room data is missing."));
 
             if (!chatRoom.getClerkId().equals(clerkId)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -136,7 +137,7 @@ public class ReservationServiceImpl implements ReservationService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one field must be provided.");
             }
 
-            if (request.status() != null && !VALID_STATUSES.contains(request.status())) {
+            if (request.status() != null && !VALID_PATCH_STATUSES.contains(request.status())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "status must be one of: changed, cancelled.");
             }
@@ -145,10 +146,10 @@ public class ReservationServiceImpl implements ReservationService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
 
             Itinerary itinerary = itineraryRepository.findById(reservation.getItineraryId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Related itinerary data is missing."));
 
             var chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Related chat room data is missing."));
 
             if (!chatRoom.getClerkId().equals(clerkId)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -206,10 +207,10 @@ public class ReservationServiceImpl implements ReservationService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
 
             Itinerary itinerary = itineraryRepository.findById(reservation.getItineraryId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Related itinerary data is missing."));
 
             var chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Related chat room data is missing."));
 
             if (!chatRoom.getClerkId().equals(clerkId)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
