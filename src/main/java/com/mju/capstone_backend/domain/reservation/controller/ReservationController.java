@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.reservation.controller;
 
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
+import com.mju.capstone_backend.domain.reservation.dto.DeleteReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
@@ -59,8 +60,8 @@ public class ReservationController {
 
     @Operation(summary = "예약 삭제", description = "예약 레코드를 완전히 삭제합니다. (데이터 Hard Delete)")
     @DeleteMapping("/{reservationId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> deleteReservation(
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<DeleteReservationResponse> deleteReservation(
             @PathVariable UUID reservationId,
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();

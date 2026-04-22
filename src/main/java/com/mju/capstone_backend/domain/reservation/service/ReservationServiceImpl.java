@@ -7,6 +7,7 @@ import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
+import com.mju.capstone_backend.domain.reservation.dto.DeleteReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
@@ -179,7 +180,7 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public Mono<Void> deleteReservation(String clerkId, UUID reservationId) {
+    public Mono<DeleteReservationResponse> deleteReservation(String clerkId, UUID reservationId) {
         return Mono.fromCallable(() -> {
             Reservation reservation = reservationRepository.findById(reservationId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found."));
@@ -196,12 +197,12 @@ public class ReservationServiceImpl implements ReservationService {
             }
 
             reservationRepository.delete(reservation);
-            return null;
+            return DeleteReservationResponse.of(reservationId);
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete reservation.")
-                ).then();
+                );
     }
 
     private void validateDetail(String type, Map<String, Object> detail) {
@@ -246,7 +247,6 @@ public class ReservationServiceImpl implements ReservationService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void requirePassengers(Map<String, Object> detail) {
         Object val = detail.get("passengers");
         if (!(val instanceof List<?> list) || list.isEmpty()) {
