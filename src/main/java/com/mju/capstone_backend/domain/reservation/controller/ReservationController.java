@@ -57,7 +57,7 @@ public class ReservationController {
         return reservationService.updateReservation(clerkId, reservationId, request);
     }
 
-    @Operation(summary = "예약 삭제", description = "예약 레코드를 완전히 삭제합니다.")
+    @Operation(summary = "예약 삭제", description = "예약 레코드를 완전히 삭제합니다. (데이터 Hard Delete)")
     @DeleteMapping("/{reservationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteReservation(
