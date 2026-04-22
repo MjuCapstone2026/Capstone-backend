@@ -8,8 +8,18 @@ import java.util.Map;
 
 @Schema(example = """
         {
-          "status": "cancelled",
-          "cancelledAt": "2026-04-10T10:00:00+09:00"
+          "status": "changed",
+          "detail": {
+            "airline": "아시아나",
+            "flight_no": "OZ108",
+            "departure": {"airport": "ICN", "datetime": "2026-05-02T09:00:00"},
+            "arrival": {"airport": "NRT", "datetime": "2026-05-02T11:30:00"},
+            "seat_class": "economy",
+            "passengers": [{"name": "홍길동", "passport": "M12345678"}]
+          },
+          "totalPrice": 290000.00,
+          "currency": "KRW",
+          "reservedAt": "2026-04-10T10:00:00+09:00"
         }
         """)
 public record PatchReservationRequest(
