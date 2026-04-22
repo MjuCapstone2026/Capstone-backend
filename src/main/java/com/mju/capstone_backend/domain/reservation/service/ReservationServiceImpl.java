@@ -100,6 +100,8 @@ public class ReservationServiceImpl implements ReservationService {
                         "You do not have permission to create a reservation for this itinerary.");
             }
 
+            validateDetail(request.type(), request.detail());
+
             String detailJson = objectMapper.writeValueAsString(request.detail());
 
             Reservation reservation = Reservation.of(
@@ -150,6 +152,10 @@ public class ReservationServiceImpl implements ReservationService {
                         "You do not have permission to update this reservation.");
             }
 
+            if (request.detail() != null) {
+                validateDetail(reservation.getType(), request.detail());
+            }
+
             String detailJson = request.detail() != null
                     ? objectMapper.writeValueAsString(request.detail())
                     : null;
@@ -196,6 +202,65 @@ public class ReservationServiceImpl implements ReservationService {
                         e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete reservation.")
                 ).then();
+    }
+
+    private void validateDetail(String type, Map<String, Object> detail) {
+        switch (type) {
+            case "flight" -> {
+                requireKeys(detail, "flight", "airline", "flight_no", "departure", "arrival", "seat_class", "passengers");
+                requireNestedKeys(detail, "flight", "departure", "airport", "datetime");
+                requireNestedKeys(detail, "flight", "arrival", "airport", "datetime");
+                requirePassengers(detail);
+            }
+            case "accommodation" -> requireKeys(detail, "accommodation", "hotel_name", "room_type", "check_in", "check_out", "guests");
+            case "car_rental" -> {
+                requireKeys(detail, "car_rental", "company", "car_model", "pickup", "dropoff");
+                requireNestedKeys(detail, "car_rental", "pickup", "location", "datetime");
+                requireNestedKeys(detail, "car_rental", "dropoff", "location", "datetime");
+            }
+        }
+    }
+
+    private void requireKeys(Map<String, Object> detail, String type, String... keys) {
+        for (String key : keys) {
+            if (!detail.containsKey(key) || detail.get(key) == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "detail." + key + " is required for type '" + type + "'.");
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void requireNestedKeys(Map<String, Object> detail, String type, String parent, String... keys) {
+        Object parentVal = detail.get(parent);
+        if (!(parentVal instanceof Map)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "detail." + parent + " must be an object for type '" + type + "'.");
+        }
+        Map<String, Object> nested = (Map<String, Object>) parentVal;
+        for (String key : keys) {
+            if (!nested.containsKey(key) || nested.get(key) == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "detail." + parent + "." + key + " is required for type '" + type + "'.");
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void requirePassengers(Map<String, Object> detail) {
+        Object val = detail.get("passengers");
+        if (!(val instanceof List<?> list) || list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "detail.passengers must be a non-empty array for type 'flight'.");
+        }
+        for (int i = 0; i < list.size(); i++) {
+            if (!(list.get(i) instanceof Map<?, ?> passenger)
+                    || !passenger.containsKey("name") || passenger.get("name") == null
+                    || !passenger.containsKey("passport") || passenger.get("passport") == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "detail.passengers[" + i + "] must include name and passport.");
+            }
+        }
     }
 
     private Map<String, Object> parseDetail(Reservation reservation) {
