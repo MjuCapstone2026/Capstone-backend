@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
@@ -61,7 +62,8 @@ public class Reservation {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at", insertable = false)
+    @UpdateTimestamp
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
     public static Reservation of(UUID itineraryId, String type, String status, String bookedBy,
@@ -78,6 +80,7 @@ public class Reservation {
         r.totalPrice = totalPrice;
         r.currency = currency;
         r.reservedAt = reservedAt;
+        r.updatedAt = OffsetDateTime.now();
         return r;
     }
 
