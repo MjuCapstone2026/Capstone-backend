@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -56,6 +57,7 @@ public class Reservation {
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
 
+    @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -63,8 +65,8 @@ public class Reservation {
     private OffsetDateTime updatedAt;
 
     public static Reservation of(UUID itineraryId, String type, String status, String bookedBy,
-                                 String bookingUrl, String externalRefId, String detail,
-                                 BigDecimal totalPrice, String currency, OffsetDateTime reservedAt) {
+            String bookingUrl, String externalRefId, String detail,
+            BigDecimal totalPrice, String currency, OffsetDateTime reservedAt) {
         Reservation r = new Reservation();
         r.itineraryId = itineraryId;
         r.type = type;
@@ -80,13 +82,19 @@ public class Reservation {
     }
 
     public void update(String status, String detail, BigDecimal totalPrice,
-                       String currency, OffsetDateTime reservedAt, OffsetDateTime cancelledAt) {
-        if (status != null) this.status = status;
-        if (detail != null) this.detail = detail;
-        if (totalPrice != null) this.totalPrice = totalPrice;
-        if (currency != null) this.currency = currency;
-        if (reservedAt != null) this.reservedAt = reservedAt;
-        if (cancelledAt != null) this.cancelledAt = cancelledAt;
+            String currency, OffsetDateTime reservedAt, OffsetDateTime cancelledAt) {
+        if (status != null)
+            this.status = status;
+        if (detail != null)
+            this.detail = detail;
+        if (totalPrice != null)
+            this.totalPrice = totalPrice;
+        if (currency != null)
+            this.currency = currency;
+        if (reservedAt != null)
+            this.reservedAt = reservedAt;
+        if (cancelledAt != null)
+            this.cancelledAt = cancelledAt;
     }
 
     @PreUpdate
