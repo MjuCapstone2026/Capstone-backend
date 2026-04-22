@@ -72,7 +72,9 @@
       "itineraryId": "be4d9d2d-1d84-4b1b-bf4d-1ac6b9cc7f22",
       "type": "flight",
       "status": "confirmed",
-      "createdAt": "2026-04-03T21:20:00"
+      "reservedAt": "2026-04-03T21:20:00",
+      "createdAt": "2026-04-03T21:20:10",
+      "updatedAt": "2026-04-03T21:20:10"
     }
     ```
     
