@@ -5,7 +5,7 @@ import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse
 import com.mju.capstone_backend.domain.reservation.dto.DeleteReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
-import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
+import com.mju.capstone_backend.domain.reservation.dto.CancelReservationResponse;
 import com.mju.capstone_backend.domain.reservation.service.ReservationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -295,8 +295,8 @@ class ReservationControllerTest {
     @Test
     @DisplayName("예약 수정 - 유효한 JWT + 정상 body - 200 반환 및 응답 확인")
     void updateReservation_withValidJwt_returns200() {
-        PatchReservationResponse response = new PatchReservationResponse(
-                RESERVATION_ID, "cancelled", OffsetDateTime.now()
+        CancelReservationResponse response = new CancelReservationResponse(
+                RESERVATION_ID, "cancelled", OffsetDateTime.now(), OffsetDateTime.now()
         );
         when(reservationService.updateReservation(eq(CLERK_ID), eq(RESERVATION_ID), any(PatchReservationRequest.class)))
                 .thenReturn(Mono.just(response));
