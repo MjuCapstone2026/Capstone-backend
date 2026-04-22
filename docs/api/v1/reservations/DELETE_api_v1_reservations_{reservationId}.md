@@ -33,9 +33,16 @@
 
 ## **3. 응답 (Response)**
 
-### **3.1 성공 (204 No Content)**
+### **3.1 성공 (200 OK)**
 
-- **Description**: 예약이 성공적으로 삭제되었습니다. 응답 바디 없음.
+- **Description**: 예약이 성공적으로 삭제되었습니다.
+    
+    ```json
+    {
+      "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
+      "deleted": true
+    }
+    ```
 
 ### **3.2 인증 실패 (401 Unauthorized)**
 
