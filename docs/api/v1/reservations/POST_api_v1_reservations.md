@@ -42,7 +42,7 @@
   },
   "totalPrice": 320000.00,
   "currency": "KRW",
-  "reservedAt": "2026-04-03T21:30:00"
+  "reservedAt": "2026-04-03T21:20:00"
 }
 ```
 
