@@ -10,7 +10,9 @@ public record CreateReservationResponse(
         UUID itineraryId,
         String type,
         String status,
-        OffsetDateTime createdAt
+        OffsetDateTime reservedAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
     public static CreateReservationResponse from(Reservation reservation) {
         return new CreateReservationResponse(
@@ -18,7 +20,9 @@ public record CreateReservationResponse(
                 reservation.getItineraryId(),
                 reservation.getType(),
                 reservation.getStatus(),
-                reservation.getCreatedAt()
+                reservation.getReservedAt(),
+                reservation.getCreatedAt(),
+                reservation.getUpdatedAt()
         );
     }
 }
