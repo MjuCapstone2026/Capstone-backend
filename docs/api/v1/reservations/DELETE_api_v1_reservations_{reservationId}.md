@@ -82,6 +82,36 @@
     }
     ```
     
+### **3.5 서버 내부 오류 (500 Internal Server Error)**
+
+- **Description**: 요청은 유효하지만, 서버 내 데이터 간의 참조 관계가 깨져 있거나 데이터가 유실된 경우입니다.
+    - 예약과 연결된 **일정(Itinerary)** 데이터가 없는 경우:
+        
+        ```json
+        {
+          "status": 500,
+          "error": "Internal Server Error",
+          "message": "Related itinerary data is missing."
+        }
+        ```
+    - 일정과 연결된 **채팅방(ChatRoom)** 데이터가 없는 경우:
+        
+        ```json
+        {
+          "status": 500,
+          "error": "Internal Server Error",
+          "message": "Related chat room data is missing."
+        }
+        ```
+    - 기타 예상치 못한 서버 내부 오류 경우:
+        
+        ```json
+        {
+          "status": 500,
+          "error": "Internal Server Error",
+          "message": "Failed to delete reservation."
+        }
+        ```
 
 ---
 
@@ -104,6 +134,6 @@
 ## **5. 호출 예시 (Example)**
 
 ```json
-curl -X DELETE https://your-api-domain.com/v1/reservations/{reservationId} \
+curl -X DELETE https://your-api-domain.com/api/v1/reservations/{reservationId} \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

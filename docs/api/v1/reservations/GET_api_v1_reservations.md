@@ -46,122 +46,130 @@
 
 - **Description**: 현재 로그인한 사용자의 예약 목록을 성공적으로 조회했습니다.
 
-```json
-{
-  "reservations": [
-    {
-      "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
-      "itineraryId": "be4d9d2d-1d84-4b1b-bf4d-1ac6b9cc7f22",
-      "type": "flight",
-      "status": "confirmed",
-      "bookedBy": "user",
-      "bookingUrl": "https://booking.example.com/flight/123",
-      "externalRefId": "KE12345678",
-      "detail": {
-        "airline": "Korean Air",
-        "flight_no": "KE721",
-        "departure": {
-          "airport": "ICN",
-          "datetime": "2026-05-01T09:00:00"
+  ```json
+  {
+    "reservations": [
+      {
+        "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
+        "itineraryId": "be4d9d2d-1d84-4b1b-bf4d-1ac6b9cc7f22",
+        "type": "flight",
+        "status": "confirmed",
+        "bookedBy": "user",
+        "bookingUrl": "https://booking.example.com/flight/123",
+        "externalRefId": "KE12345678",
+        "detail": {
+          "airline": "Korean Air",
+          "flight_no": "KE721",
+          "departure": {
+            "airport": "ICN",
+            "datetime": "2026-05-01T09:00:00"
+          },
+          "arrival": {
+            "airport": "NRT",
+            "datetime": "2026-05-01T11:30:00"
+          }
         },
-        "arrival": {
-          "airport": "NRT",
-          "datetime": "2026-05-01T11:30:00"
-        }
+        "totalPrice": 320000.00,
+        "currency": "KRW",
+        "reservedAt": "2026-04-03T21:30:00Z",
+        "cancelledAt": null,
+        "createdAt": "2026-04-03T21:20:00Z",
+        "updatedAt": "2026-04-03T21:30:00Z"
       },
-      "totalPrice": 320000.00,
-      "currency": "KRW",
-      "reservedAt": "2026-04-03T21:30:00",
-      "cancelledAt": null,
-      "createdAt": "2026-04-03T21:20:00",
-      "updatedAt": "2026-04-03T21:30:00"
-    },
-    {
-      "reservationId": "7f2f7e4f-5d29-47f7-8561-8ff22f0b2fd8",
-      "itineraryId": "3db203a5-d4fa-41b8-b30f-1d4cf58ce0e6",
-      "type": "flight",
-      "status": "confirmed",
-      "bookedBy": "ai",
-      "bookingUrl": "https://booking.example.com/flight/456",
-      "externalRefId": "OZ98765432",
-      "detail": {
-        "airline": "Asiana",
-        "flight_no": "OZ108",
-        "departure": {
-          "airport": "FCO",
-          "datetime": "2026-06-10T12:20:00"
+      {
+        "reservationId": "7f2f7e4f-5d29-47f7-8561-8ff22f0b2fd8",
+        "itineraryId": "3db203a5-d4fa-41b8-b30f-1d4cf58ce0e6",
+        "type": "flight",
+        "status": "confirmed",
+        "bookedBy": "ai",
+        "bookingUrl": "https://booking.example.com/flight/456",
+        "externalRefId": "OZ98765432",
+        "detail": {
+          "airline": "Asiana",
+          "flight_no": "OZ108",
+          "departure": {
+            "airport": "FCO",
+            "datetime": "2026-06-10T12:20:00"
+          },
+          "arrival": {
+            "airport": "ICN",
+            "datetime": "2026-06-11T06:20:00"
+          }
         },
-        "arrival": {
-          "airport": "ICN",
-          "datetime": "2026-06-11T06:20:00"
-        }
-      },
-      "totalPrice": 890000.00,
-      "currency": "KRW",
-      "reservedAt": "2026-04-05T10:10:00",
-      "cancelledAt": null,
-      "createdAt": "2026-04-05T10:00:00",
-      "updatedAt": "2026-04-05T10:10:00"
-    }
-  ]
-}
-```
+        "totalPrice": 890000.00,
+        "currency": "KRW",
+        "reservedAt": "2026-04-05T10:10:00Z",
+        "cancelledAt": null,
+        "createdAt": "2026-04-05T10:00:00Z",
+        "updatedAt": "2026-04-05T10:10:00Z"
+      }
+    ]
+  }
+  ```
 
 - **예약이 없는 경우 예시**
 
-```json
-{
-  "reservations": []
-}
-```
+  ```json
+  {
+    "reservations": []
+  }
+  ```
 
 ### **3.2 인증 실패 (401 Unauthorized)**
 
 - **Description**: JWT 토큰이 누락되었거나 만료, 서명 오류 등으로 유효하지 않은 경우입니다.
 
-```json
-{
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Invalid or expired token."
-}
-```
+  ```json
+  {
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "Invalid or expired token."
+  }
+  ```
 
 ### **3.3 사용자 없음 (404 Not Found)**
 
 - **Description**: JWT는 유효하지만 서비스 DB에 해당 사용자가 존재하지 않는 경우입니다.
 
-```json
-{
-  "status": 404,
-  "error": "Not Found",
-  "message": "User not found. Please sign up first."
-}
-```
+  ```json
+  {
+    "status": 404,
+    "error": "Not Found",
+    "message": "User not found. Please sign up first."
+  }
+  ```
 
 ### **3.4 잘못된 요청 (400 Bad Request)**
 
-- **Description**: `type` 또는 `status` 값이 허용된 값이 아닌 경우입니다.
+- **Description**: `type` 또는 `status` 값이 허용된 값이 아닌 경우입니다. 각 파라미터는 별도로 검증되어 독립적으로 오류를 반환합니다.
 
-```json
-{
-  "status": 400,
-  "error": "Bad Request",
-  "message": "type must be one of: flight, accommodation, car_rental. status must be one of: confirmed, changed, cancelled."
-}
-```
+  ```json
+  {
+    "status": 400,
+    "error": "Bad Request",
+    "message": "type must be one of: flight, accommodation, car_rental."
+  }
+  ```
+
+  ```json
+  {
+    "status": 400,
+    "error": "Bad Request",
+    "message": "status must be one of: confirmed, changed, cancelled."
+  }
+  ```
 
 ### **3.5 서버 오류 (500 Internal Server Error)**
 
 - **Description**: 예약 목록 조회 중 서버 내부 오류가 발생한 경우입니다.
 
-```json
-{
-  "status": 500,
-  "error": "Internal Server Error",
-  "message": "Failed to fetch reservations."
-}
-```
+  ```json
+  {
+    "status": 500,
+    "error": "Internal Server Error",
+    "message": "Failed to get reservations."
+  }
+  ```
 
 ---
 
@@ -202,6 +210,6 @@
 ### **5. 호출 예시 (Example)**
 
 ```bash
-curl -X GET "https://your-api-domain.com/v1/reservations?type=flight&status=confirmed" \
+curl -X GET "https://your-api-domain.com/api/v1/reservations?type=flight&status=confirmed" \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```

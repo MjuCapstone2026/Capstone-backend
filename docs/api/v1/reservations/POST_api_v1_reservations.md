@@ -42,7 +42,7 @@
   },
   "totalPrice": 320000.00,
   "currency": "KRW",
-  "reservedAt": "2026-04-03T21:20:00"
+  "reservedAt": "2026-04-03T21:20:00+09:00"
 }
 ```
 
@@ -56,7 +56,7 @@
 | `detail` | Y | JSONB | 유형별 상세 정보 |
 | `totalPrice` | N | Decimal | 총 결제 금액 |
 | `currency` | N | String | 통화 코드 (기본값 `KRW`) |
-| `reservedAt` | N | TIMESTAMP | 예약 완료 일시 |
+| `reservedAt` | N | ISO-8601 with offset | 예약 완료 일시. **타임존 오프셋 필수** (예: `2026-04-03T21:20:00+09:00`) |
 
 ---
 
@@ -72,9 +72,9 @@
       "itineraryId": "be4d9d2d-1d84-4b1b-bf4d-1ac6b9cc7f22",
       "type": "flight",
       "status": "confirmed",
-      "reservedAt": "2026-04-03T21:20:00",
-      "createdAt": "2026-04-03T21:20:10",
-      "updatedAt": "2026-04-03T21:20:10"
+      "reservedAt": "2026-04-03T21:20:00Z",
+      "createdAt": "2026-04-03T12:20:10+09:00",
+      "updatedAt": "2026-04-03T12:20:10+09:00"
     }
     ```
     
@@ -108,16 +108,34 @@
 ### **3.4 잘못된 요청 (400 Bad Request)**
 
 - **Description**: 필수 필드가 누락되었거나 허용되지 않은 값인 경우입니다.
-
-  | 케이스 | message |
-  | --- | --- |
-  | `type` 허용값 위반 | `type must be one of: flight, accommodation, car_rental.` |
-  | `bookedBy` 허용값 위반 | `bookedBy must be one of: user, ai.` |
-  | `detail` 필수 키 누락 | `detail.{field} is required for type '{type}'.` |
-  | `detail` 중첩 필수 키 누락 | `detail.{parent}.{field} is required for type '{type}'.` |
-  | `passengers` 빈 배열 또는 비리스트 | `detail.passengers must be a non-empty array for type 'flight'.` |
-  | `passengers[n]` name/passport 누락 | `detail.passengers[n] must include name and passport.` |
-
+    
+    
+    | 케이스 | message |
+    | --- | --- |
+    | `type` 허용값 위반 | `type must be one of: flight, accommodation, car_rental.` |
+    | `bookedBy` 허용값 위반 | `bookedBy must be one of: user, ai.` |
+    | `detail` 필수 키 누락 또는 빈 값 | `detail.{field} is required for type '{type}'.` |
+    | `detail.{parent}` 객체 아님 | `detail.{parent} must be an object for type '{type}'.` |
+    | `detail` 중첩 필수 키 누락 또는 빈 값 | `detail.{parent}.{field} is required for type '{type}'.` |
+    | `passengers` 빈 배열 또는 비리스트 | `detail.passengers must be a non-empty array for type 'flight'.` |
+    | `passengers[n]` name/passport 누락 또는 빈 값 | `detail.passengers[n] must include name and passport.` |
+    
+    ```json
+    {
+    	"status": 400,
+    	"error": "Bad Request",
+    	"message": "type must be one of: flight, accommodation, car_rental."
+    }
+    ```
+    
+    ```json
+    {
+    	"status": 400,
+    	"error": "Bad Request",
+    	"message": "bookedBy must be one of: user, ai."
+    }
+    ```
+    
     ```json
     {
       "status": 400,
@@ -129,8 +147,16 @@
 
 ### **3.5 리소스 없음 (404 Not Found)**
 
-- **Description**: 해당 `itineraryId`에 해당하는 일정이 존재하지 않는 경우입니다.
-    
+- **Description**: JWT는 유효하지만 서비스 DB에 해당 사용자가 존재하지 않거나, `itineraryId`에 해당하는 일정이 존재하지 않는 경우입니다.
+
+    ```json
+    {
+      "status": 404,
+      "error": "Not Found",
+      "message": "User not found. Please sign up first."
+    }
+    ```
+
     ```json
     {
       "status": 404,
@@ -139,6 +165,27 @@
     }
     ```
     
+### **3.6 서버 내부 오류 (500 Internal Server Error)**
+
+- **Description**: 요청은 유효하지만, 서버 내 데이터 간의 참조 관계가 깨져 있거나 데이터가 유실된 경우입니다.
+    - 일정과 연결된 **채팅방(ChatRoom)** 데이터가 없는 경우:
+        
+        ```json
+        {
+          "status": 500,
+          "error": "Internal Server Error",
+          "message": "Related chat room data is missing."
+        }
+        ```
+    - 기타 예상치 못한 서버 내부 오류 경우:
+        
+        ```json
+        {
+          "status": 500,
+          "error": "Internal Server Error",
+          "message": "Failed to create reservation."
+        }
+        ```
 
 ---
 
@@ -148,11 +195,12 @@
 
 1. **Token Parsing**: Authorization 헤더에서 JWT를 추출하고 검증합니다.
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
-3. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
-4. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-5. **Validation**: `type`, `bookedBy` 값이 허용된 값인지 검증합니다. 허용되지 않은 값이면 400을 반환합니다.
-6. **Detail Validation**: `type`에 따라 `detail` 필수 키를 검증합니다. 누락된 키가 있으면 400을 반환합니다.
-7. **Insert**: `reservations` 테이블에 레코드를 생성합니다. `status`는 `confirmed`로 초기화합니다.
+3. **User Check**: `users` 테이블에서 해당 `clerk_id` 사용자가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
+4. **Validation**: `type`, `bookedBy` 값이 허용된 값인지 검증합니다. 허용되지 않은 값이면 400을 반환합니다.
+5. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
+6. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
+7. **Detail Validation**: `type`에 따라 `detail` 필수 키를 검증합니다. 누락 또는 빈 값이면 400을 반환합니다.
+8. **Insert**: `reservations` 테이블에 레코드를 생성합니다. `status`는 `confirmed`로 초기화합니다.
 
 ### **4.2 detail 필수 필드 (type별)**
 
@@ -211,7 +259,7 @@
 ### **5. 호출 예시 (Example)**
 
 ```bash
-curl -X POST https://your-api-domain.com/v1/reservations \
+curl -X POST https://your-api-domain.com/api/v1/reservations \
   -H "Authorization: Bearer <clerk_jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
