@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.reservation.controller;
 
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.CreateReservationResponse;
+import com.mju.capstone_backend.domain.reservation.dto.DeleteReservationResponse;
 import com.mju.capstone_backend.domain.reservation.dto.GetReservationsResponse;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationRequest;
 import com.mju.capstone_backend.domain.reservation.dto.PatchReservationResponse;
@@ -385,10 +386,10 @@ class ReservationControllerTest {
     // ─── DELETE /api/v1/reservations/{reservationId} ─────────────────────────
 
     @Test
-    @DisplayName("예약 삭제 - 유효한 JWT - 204 반환")
-    void deleteReservation_withValidJwt_returns204() {
+    @DisplayName("예약 삭제 - 유효한 JWT - 200 반환 및 응답 확인")
+    void deleteReservation_withValidJwt_returns200() {
         when(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
-                .thenReturn(Mono.empty());
+                .thenReturn(Mono.just(new DeleteReservationResponse(RESERVATION_ID, true)));
 
         webTestClient
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
@@ -396,7 +397,10 @@ class ReservationControllerTest {
                 .delete()
                 .uri("/api/v1/reservations/" + RESERVATION_ID)
                 .exchange()
-                .expectStatus().isNoContent();
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.reservationId").isEqualTo(RESERVATION_ID.toString())
+                .jsonPath("$.deleted").isEqualTo(true);
 
         verify(reservationService).deleteReservation(CLERK_ID, RESERVATION_ID);
     }

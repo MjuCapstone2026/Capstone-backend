@@ -499,8 +499,8 @@ class ReservationServiceImplTest {
         }
 
         @Test
-        @DisplayName("예약 삭제 - 정상 요청 - delete 호출 후 완료")
-        void deleteReservation_success_completesAndCallsDelete() {
+        @DisplayName("예약 삭제 - 정상 요청 - reservationId와 deleted:true 반환")
+        void deleteReservation_success_returnsResponse() {
                 Reservation mockReservation = mock(Reservation.class);
                 when(mockReservation.getItineraryId()).thenReturn(ITINERARY_ID);
                 Itinerary mockItinerary = mock(Itinerary.class);
@@ -513,6 +513,10 @@ class ReservationServiceImplTest {
                 when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(mockChatRoom));
 
                 StepVerifier.create(reservationService.deleteReservation(CLERK_ID, RESERVATION_ID))
+                                .assertNext(response -> {
+                                        assertThat(response.reservationId()).isEqualTo(RESERVATION_ID);
+                                        assertThat(response.deleted()).isTrue();
+                                })
                                 .verifyComplete();
 
                 verify(reservationRepository).delete(mockReservation);
