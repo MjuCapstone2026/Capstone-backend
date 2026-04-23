@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -102,7 +103,7 @@ public class ItineraryController {
     @ResponseStatus(HttpStatus.OK)
     public Mono<PatchItemStatusResponse> patchItemStatus(
             @PathVariable UUID itineraryId,
-            @RequestBody PatchItemStatusRequest request,
+            @Valid @RequestBody PatchItemStatusRequest request,
             JwtAuthenticationToken authentication) {
         String clerkId = authentication.getToken().getSubject();
         return itineraryService.patchItemStatus(clerkId, itineraryId, request);
