@@ -86,7 +86,7 @@
 
 **응답 필드 설명** (→ `itinerary_logs` 테이블 컬럼 기준)
 
-`itinerary_logs` 테이블의 행을 `created_at` 오름차순으로 정렬하여 `logs` 배열로 반환합니다. 이력이 없으면 `logs: []`입니다.
+`itinerary_logs` 테이블의 행을 `created_at` 내림차순(최신 순)으로 정렬하여 `logs` 배열로 반환합니다. 이력이 없으면 `logs: []`입니다.
 
 | Field | DB Column | Type | Nullable | Description |
 | --- | --- | --- | --- | --- |
