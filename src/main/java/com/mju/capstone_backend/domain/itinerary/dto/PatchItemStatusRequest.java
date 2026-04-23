@@ -1,6 +1,8 @@
 package com.mju.capstone_backend.domain.itinerary.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Schema(example = """
         {
@@ -10,8 +12,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
         }
         """)
 public record PatchItemStatusRequest(
-        String date,
-        Integer index,
-        String status
+        @NotBlank String date,
+        @NotNull Integer index,
+        @NotBlank String status
 ) {
 }
