@@ -34,8 +34,10 @@ public record MessageDoneResponse(
     ) {}
 
     public record ChangeResult(
+            UUID itineraryId,
             LocalDate startDate,
             LocalDate endDate,
+            Integer totalDays,
             BigDecimal budget,
             Integer adultCount,
             Integer childCount,
@@ -46,8 +48,9 @@ public record MessageDoneResponse(
     public record ReservationResult(
             UUID reservationId,
             String type,
-            String bookingUrl,
             String status,
+            String bookingUrl,
+            Map<String, Object> detail,
             BigDecimal totalPrice,
             String currency,
             OffsetDateTime reservedAt
@@ -55,6 +58,7 @@ public record MessageDoneResponse(
 
     public record CancelResult(
             UUID reservationId,
+            String status,
             OffsetDateTime cancelledAt
     ) {}
 }
