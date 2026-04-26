@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -34,12 +37,14 @@ public sealed interface FastApiDonePayload
 
     // ─── type별 구체 타입 ─────────────────────────────────────────────────────
 
+    @JsonDeserialize
     record Chat(
             MessagePayload userMessage,
             MessagePayload assistantMessage,
             MemoryPayload memory
     ) implements FastApiDonePayload {}
 
+    @JsonDeserialize
     record Itinerary(
             MessagePayload userMessage,
             MessagePayload assistantMessage,
@@ -47,6 +52,7 @@ public sealed interface FastApiDonePayload
             ItineraryData itinerary
     ) implements FastApiDonePayload {}
 
+    @JsonDeserialize
     record Change(
             MessagePayload userMessage,
             MessagePayload assistantMessage,
@@ -54,6 +60,7 @@ public sealed interface FastApiDonePayload
             ChangeData change
     ) implements FastApiDonePayload {}
 
+    @JsonDeserialize
     record Reservation(
             MessagePayload userMessage,
             MessagePayload assistantMessage,
@@ -61,6 +68,7 @@ public sealed interface FastApiDonePayload
             ReservationData reservation
     ) implements FastApiDonePayload {}
 
+    @JsonDeserialize
     record Cancel(
             MessagePayload userMessage,
             MessagePayload assistantMessage,
@@ -114,6 +122,8 @@ public sealed interface FastApiDonePayload
 
     class Deserializer extends StdDeserializer<FastApiDonePayload> {
 
+        private static final Logger log = LoggerFactory.getLogger(Deserializer.class);
+
         public Deserializer() {
             super(FastApiDonePayload.class);
         }
@@ -123,7 +133,14 @@ public sealed interface FastApiDonePayload
                 throws IOException {
             ObjectMapper mapper = (ObjectMapper) p.getCodec();
             JsonNode node = mapper.readTree(p);
-            String type = node.path("type").asText();
+            String type = node.path("type").asText(null);
+            if (node.isObject()) {
+                ((ObjectNode) node).remove("type");
+            }
+            if (type == null || type.isBlank()) {
+                log.warn("FastAPI done payload type is null or missing — falling back to chat");
+                return mapper.treeToValue(node, Chat.class);
+            }
             return switch (type) {
                 case "chat"        -> mapper.treeToValue(node, Chat.class);
                 case "itinerary"   -> mapper.treeToValue(node, Itinerary.class);
