@@ -82,25 +82,38 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             return chatRoom;
         }).subscribeOn(dbScheduler)
         .flatMapMany(chatRoom -> {
-            // TODO: fastApiChatClient.stream(roomId, content) 연동 후 아래 구현 예정
+            // TODO: FastAPI SSE 연동 구현 — fastApiChatClient.stream() 호출
             //
-            // [Chunk 이벤트]
-            //   → SSE "chunk" { content } 중계
+            // 1. MemoryPayload 구성 (chatRoom.getAiSummary(), chatRoom.getPreferences())
+            //    chatRoom.getPreferences()는 JSON String → Map<String,Object> 역직렬화 필요
             //
-            // [Done 이벤트]
-            //   1. user / assistant ChatMessage 저장
-            //   2. embedding 저장 (updateEmbedding)
-            //   3. memory != null → ChatRoom ai_summary / preferences 업데이트
-            //      (TODO: ChatRoom 메서드 추가 후 구현)
-            //   4. type 분기:
-            //      - "chat"         → 추가 처리 없음
-            //      - "itinerary"    → dayPlans full replacement + log snapshot
-            //      - "change"       → basicInfo 업데이트 + log snapshot
-            //      - "reservation"  → Reservation 저장 (팀원 승인 후)
-            //      - "cancel"       → Reservation 취소 (팀원 승인 후)
-            //      - null           → log.warn + chat fallback
-            //      - unknown        → log.error + 502
-            //   5. SSE "done" { userMessage, assistantMessage, itinerary? } 반환
+            // 2. fastApiChatClient.stream(roomId, content, memoryPayload)
+            //    .concatMap(event -> switch(event) { ... })
+            //
+            // [Chunk 이벤트] ChatStreamEvent.Chunk
+            //   → SSE event="chunk", data=MessageChunkResponse(content) 중계
+            //
+            // [Done 이벤트] ChatStreamEvent.Done
+            //   Mono.fromCallable(() -> { ... }).subscribeOn(dbScheduler) 블록 내:
+            //   (a) user / assistant ChatMessage 저장 (chatMessageRepository.save)
+            //   (b) embedding 저장: updateEmbedding(msgId, embedding.toString())
+            //   (c) memory 갱신 (done.memory != null 이면 type 무관하게 처리)
+            //       TODO: ChatRoom.updateMemory(aiSummary, preferencesJson) — 팀원 승인 후 구현
+            //   (d) type 분기 (sealed interface pattern switch):
+            //       - Chat        → 추가 처리 없음
+            //       - Itinerary   → itinerary_logs 스냅샷 → dayPlans full replacement
+            //                       (동일 time → 기존 status 유지, 신규 → "todo", time 오름차순)
+            //       - Change      → itinerary_logs 스냅샷 → itineraries 기본 정보 갱신
+            //                       (날짜 변경 시 day_plans 키 조정, destination 수정 불가)
+            //       - Reservation → itineraryId 조회(roomId 경유) → reservations 저장
+            //                       bookedBy="ai", status="confirmed"
+            //       - Cancel      → reservations.status="cancelled", cancelled_at 저장
+            //       - null type   → log.warn + Chat fallback
+            //       - unknown     → FastApiDonePayload.Deserializer → IllegalArgumentException
+            //                       → 502 Bad Gateway
+            //   (e) SSE event="done", data=MessageDoneResponse 반환
+            //
+            // .onErrorMap(e -> !(e instanceof ResponseStatusException), e -> RSE(500))
             return Flux.error(new UnsupportedOperationException("AI integration pending"));
         });
     }
