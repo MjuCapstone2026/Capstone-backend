@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.chatmessage.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatmessage.dto.ChatStreamEvent;
+import com.mju.capstone_backend.domain.chatmessage.dto.FastApiChatRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,13 +18,24 @@ public class FastApiChatClient {
     private final WebClient aiWebClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${ai.internal-token:}")  // AI 연동 전까지 기본값 빈 문자열로 서버 기동 허용
+    @Value("${ai.internal-token:}")
     private String internalToken;
 
-    public Flux<ChatStreamEvent> stream(UUID roomId, String content) {
-        // TODO: WebClient로 POST /api/v1/chat SSE 연동 구현
-        // TODO: X-Internal-Token 헤더 추가
-        // TODO: bodyToFlux SSE 파싱 (chunk / done 이벤트)
+    public Flux<ChatStreamEvent> stream(UUID roomId, String content, FastApiChatRequest.MemoryPayload memory) {
+        // TODO: POST /api/v1/ai-messages WebClient SSE 연동 구현
+        //   - Header: X-Internal-Token: ${ai.internal-token}
+        //   - Body: FastApiChatRequest(roomId, content, memory)
+        //   - bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {}).timeout(60s)
+        //   이벤트 분기:
+        //     "chunk" → ChatStreamEvent.Chunk(content)
+        //     "done"  → objectMapper.readValue(data, FastApiDonePayload.class)
+        //               → ChatStreamEvent.Done(payload)
+        //               IllegalArgumentException → 502 Bad Gateway
+        //     unknown event type → log.warn + Mono.empty()
+        //   에러 매핑:
+        //     TimeoutException           → 504 Gateway Timeout
+        //     WebClientRequestException  → 503 Service Unavailable
+        //     WebClientResponseException → 502 Bad Gateway
         return Flux.error(new UnsupportedOperationException("AI integration pending"));
     }
 }
