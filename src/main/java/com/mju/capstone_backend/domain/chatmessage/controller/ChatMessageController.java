@@ -21,7 +21,7 @@ import java.util.UUID;
 
 @Tag(name = "ChatMessage API", description = "채팅 메시지 관련 API")
 @RestController
-@RequestMapping("/api/v1/chat-rooms/{roomId}/messages")
+@RequestMapping("/api/v1/chat-messages/{roomId}")
 @RequiredArgsConstructor
 public class ChatMessageController {
 
