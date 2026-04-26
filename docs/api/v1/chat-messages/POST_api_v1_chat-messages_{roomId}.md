@@ -108,7 +108,7 @@
             "endDate": "2026-05-04",
             "dayPlans": {
               "2026-05-01": [
-                {"index": 0, "time": "09:00 ~ 10:00", "place": "창덕궁", "note": "후원 투어 예약 필요", "status": "todo"}
+                {"plan_name": 0, "time": "09:00 ~ 10:00", "place": "창덕궁", "note": "후원 투어 예약 필요", "status": "todo"}
               ]
             },
             "updatedAt": "2026-04-03T22:00:05"
@@ -269,7 +269,7 @@
         - 저장 전 각 날짜의 아이템 배열을 `time` 오름차순으로 정렬하여 저장합니다.
     - `reservation` → chat_messages 저장 + embedding 저장 + reservations 저장 + reservation_histories 저장
     - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 + reservation_histories 저장
-    - `change` → 사용자가 일정의 목적지, 예산, 인원(성인수, 아이수, 아이 나이) 등 기본 정보 수정을 llm으로 요청할 경우
+    - `change` → 사용자가 일정의 예산, 인원(성인수, 아이수, 아이 나이) 등 기본 정보 수정을 llm으로 요청할 경우
 9. **done 이벤트 전송**: 저장 완료 후 최종 메타데이터를 done 이벤트로 프론트엔드에 전송합니다. → 아이템 배열은 `time` 오름차순으로 DB에 저장되며, 백엔드가 index를 부여하여 반환합니다. → `dayPlans` 에서 index를 추가해서 프런트로 반환
 
 ### **4.2 DB 저장 구조**
