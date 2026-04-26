@@ -33,7 +33,7 @@
 
 | Name | Required | Type | Default | Description |
 | --- | --- | --- | --- | --- |
-| cursor | N | DATE | - | 페이지네이션 기준 메시지의 created_at (이 날짜 이전 메시지 조회) |
+| cursor | N | `OffsetDateTime` (ISO-8601) | - | 페이지네이션 기준 메시지의 created_at (이 시각 이전 메시지 조회) |
 | limit | N | INT | 30 | 한 번에 조회할 메시지 수 |
 
 ---
