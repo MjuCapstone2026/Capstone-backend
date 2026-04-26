@@ -63,7 +63,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .get()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
@@ -89,7 +89,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .get()
-                .uri("/api/v1/chat-rooms/{roomId}/messages?cursor=2026-04-03T12:09:30Z&limit=5", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}?cursor=2026-04-03T12:09:30Z&limit=5", ROOM_ID)
                 .exchange()
                 .expectStatus().isOk();
 
@@ -104,7 +104,7 @@ class ChatMessageControllerTest {
         // when & then
         webTestClient
                 .get()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .exchange()
                 .expectStatus().isUnauthorized();
     }
@@ -123,7 +123,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .get()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .exchange()
                 .expectStatus().isNotFound();
     }
@@ -141,7 +141,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .get()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .exchange()
                 .expectStatus().isForbidden();
     }
@@ -160,7 +160,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .post()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"content": "경복궁 대신 창덕궁으로 바꿔줘"}
@@ -179,7 +179,7 @@ class ChatMessageControllerTest {
         // when & then
         webTestClient
                 .post()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"content": "테스트"}
@@ -198,7 +198,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .post()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"content": ""}
@@ -221,7 +221,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .post()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"content": "테스트"}
@@ -243,7 +243,7 @@ class ChatMessageControllerTest {
                 .mutateWith(SecurityMockServerConfigurers.mockJwt()
                         .jwt(jwt -> jwt.subject(CLERK_ID)))
                 .post()
-                .uri("/api/v1/chat-rooms/{roomId}/messages", ROOM_ID)
+                .uri("/api/v1/chat-messages/{roomId}", ROOM_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"content": "테스트"}
