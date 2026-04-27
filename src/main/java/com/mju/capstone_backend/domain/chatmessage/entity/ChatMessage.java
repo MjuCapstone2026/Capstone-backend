@@ -30,7 +30,7 @@ public class ChatMessage {
     private String content;
 
     @CreationTimestamp
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
     public static ChatMessage of(UUID roomId, String role, String content) {
