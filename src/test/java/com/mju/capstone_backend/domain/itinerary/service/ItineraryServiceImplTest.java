@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
@@ -36,6 +37,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -58,6 +61,9 @@ class ItineraryServiceImplTest {
     @Mock
     private ChatRoomRepository chatRoomRepository;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     @InjectMocks
     private ItineraryServiceImpl itineraryService;
 
@@ -74,6 +80,14 @@ class ItineraryServiceImplTest {
         var mapperField = ItineraryServiceImpl.class.getDeclaredField("objectMapper");
         mapperField.setAccessible(true);
         mapperField.set(itineraryService, new ObjectMapper());
+
+        // transactionTemplate.executeWithoutResult()가 콜백을 실제로 실행하도록 설정
+        // lenient: 트랜잭션을 거치지 않는 에러 경로 테스트에서 "unused stubbing" 경고 방지
+        lenient().doAnswer(inv -> {
+            ((java.util.function.Consumer<org.springframework.transaction.TransactionStatus>) inv.getArgument(0))
+                    .accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     // ─── getItineraries ───────────────────────────────────────────────────────
