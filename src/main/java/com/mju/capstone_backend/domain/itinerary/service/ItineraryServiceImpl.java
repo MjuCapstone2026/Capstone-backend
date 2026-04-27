@@ -24,6 +24,7 @@ import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -53,6 +54,7 @@ public class ItineraryServiceImpl implements ItineraryService {
     private final ChatRoomRepository chatRoomRepository;
     private final ObjectMapper objectMapper;
     private final Scheduler dbScheduler;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public Mono<GetItinerariesResponse> getItineraries(String clerkId) {
@@ -221,8 +223,6 @@ public class ItineraryServiceImpl implements ItineraryService {
                         "No changes detected. The submitted values are identical to the current data.");
             }
 
-            itineraryLogRepository.save(ItineraryLog.of(itinerary));
-
             boolean dateChanged = !effectiveStart.equals(itinerary.getStartDate())
                     || !effectiveEnd.equals(itinerary.getEndDate());
 
@@ -230,14 +230,16 @@ public class ItineraryServiceImpl implements ItineraryService {
                     ? adjustDayPlans(itinerary.getDayPlans(), effectiveStart, effectiveEnd)
                     : null;
 
-            itinerary.updateBasicInfo(
-                    request.startDate(), request.endDate(),
-                    request.budget(),
-                    request.adultCount(),
-                    request.childCount(), request.childAges(),
-                    updatedDayPlans);
-
-            itineraryRepository.save(itinerary);
+            transactionTemplate.executeWithoutResult(status -> {
+                itineraryLogRepository.save(ItineraryLog.of(itinerary));
+                itinerary.updateBasicInfo(
+                        request.startDate(), request.endDate(),
+                        request.budget(),
+                        request.adultCount(),
+                        request.childCount(), request.childAges(),
+                        updatedDayPlans);
+                itineraryRepository.save(itinerary);
+            });
 
             return new PatchItineraryResponse(
                     itinerary.getId(),
@@ -329,10 +331,13 @@ public class ItineraryServiceImpl implements ItineraryService {
                         "No changes detected. The submitted day plans are identical to the current data.");
             }
 
-            itineraryLogRepository.save(ItineraryLog.of(itinerary));
+            String resultJson = objectMapper.writeValueAsString(result);
 
-            itinerary.updateDayPlans(objectMapper.writeValueAsString(result));
-            itineraryRepository.save(itinerary);
+            transactionTemplate.executeWithoutResult(status -> {
+                itineraryLogRepository.save(ItineraryLog.of(itinerary));
+                itinerary.updateDayPlans(resultJson);
+                itineraryRepository.save(itinerary);
+            });
 
             return new PatchDayPlansResponse(itinerary.getId(), result, itinerary.getUpdatedAt());
         }).subscribeOn(dbScheduler)

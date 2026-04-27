@@ -17,6 +17,7 @@ import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -36,6 +37,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final ReservationRepository reservationRepository;
     private final Scheduler dbScheduler;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public Mono<CreateChatRoomResponse> createChatRoom(String clerkId, CreateChatRoomRequest request) {
@@ -56,29 +58,30 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
             long totalDays = ChronoUnit.DAYS.between(request.startDate(), request.endDate()) + 1;
             String name = (totalDays - 1) + "박 " + totalDays + "일 " + request.destination() + " 여행";
-            ChatRoom chatRoom = chatRoomRepository.save(ChatRoom.of(clerkId, name));
 
-            Itinerary itinerary = itineraryRepository.save(
-                    Itinerary.of(
-                            chatRoom.getId(),
-                            request.destination(),
-                            request.startDate(),
-                            request.endDate(),
-                            request.budget(),
-                            request.adultCount(),
-                            request.childCount(),
-                            request.childAges()
-                    )
-            );
-
-            return new CreateChatRoomResponse(
-                    chatRoom.getId(),
-                    chatRoom.getName(),
-                    itinerary.getId(),
-                    chatRoom.getClerkId(),
-                    chatRoom.getCreatedAt(),
-                    chatRoom.getUpdatedAt()
-            );
+            return transactionTemplate.execute(status -> {
+                ChatRoom chatRoom = chatRoomRepository.save(ChatRoom.of(clerkId, name));
+                Itinerary itinerary = itineraryRepository.save(
+                        Itinerary.of(
+                                chatRoom.getId(),
+                                request.destination(),
+                                request.startDate(),
+                                request.endDate(),
+                                request.budget(),
+                                request.adultCount(),
+                                request.childCount(),
+                                request.childAges()
+                        )
+                );
+                return new CreateChatRoomResponse(
+                        chatRoom.getId(),
+                        chatRoom.getName(),
+                        itinerary.getId(),
+                        chatRoom.getClerkId(),
+                        chatRoom.getCreatedAt(),
+                        chatRoom.getUpdatedAt()
+                );
+            });
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
