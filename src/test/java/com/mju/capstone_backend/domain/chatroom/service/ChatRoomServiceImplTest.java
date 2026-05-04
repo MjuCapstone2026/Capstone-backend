@@ -2,11 +2,8 @@ package com.mju.capstone_backend.domain.chatroom.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
-import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomResponse;
-import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
-import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
-import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
-import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
+import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
+import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
@@ -47,6 +44,9 @@ class ChatRoomServiceImplTest {
 
     @Mock
     private ChatRoomRepository chatRoomRepository;
+
+    @Mock
+    private ChatMessageRepository chatMessageRepository;
 
     @Mock
     private ItineraryRepository itineraryRepository;
@@ -95,8 +95,9 @@ class ChatRoomServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
-        when(chatRoomRepository.save(any(ChatRoom.class))).thenReturn(chatRoom);
+        when(chatRoomRepository.saveAndFlush(any(ChatRoom.class))).thenReturn(chatRoom);
         when(itineraryRepository.save(any(Itinerary.class))).thenReturn(itinerary);
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> inv.getArgument(0));
 
         StepVerifier.create(chatRoomService.createChatRoom(CLERK_ID, request))
                 .assertNext(res -> {
@@ -105,8 +106,9 @@ class ChatRoomServiceImplTest {
                 })
                 .verifyComplete();
 
-        verify(chatRoomRepository).save(any(ChatRoom.class));
+        verify(chatRoomRepository).saveAndFlush(any(ChatRoom.class));
         verify(itineraryRepository).save(any(Itinerary.class));
+        verify(chatMessageRepository).save(any(ChatMessage.class));
     }
 
     @Test
@@ -125,6 +127,8 @@ class ChatRoomServiceImplTest {
                 .verify();
 
         verify(chatRoomRepository, never()).save(any());
+        verify(chatRoomRepository, never()).saveAndFlush(any());
+        verify(chatMessageRepository, never()).save(any());
     }
 
     @Test
