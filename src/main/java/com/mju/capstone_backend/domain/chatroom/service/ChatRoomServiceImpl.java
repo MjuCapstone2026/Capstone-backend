@@ -8,6 +8,8 @@ import com.mju.capstone_backend.domain.chatroom.dto.DeleteChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.GetChatRoomsResponse;
 import com.mju.capstone_backend.domain.chatroom.dto.UpdateChatRoomNameResponse;
+import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
+import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
@@ -31,8 +33,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ChatRoomServiceImpl implements ChatRoomService {
 
+        private static final String INITIAL_AI_MESSAGE = "입력하신 정보를 확인했어요. 여행 계획에 더 참고해야 할 만한 사항이 있나요? 없다면 바로 일정을 생성할게요!";
+
         private final UserRepository userRepository;
         private final ChatRoomRepository chatRoomRepository;
+        private final ChatMessageRepository chatMessageRepository;
         private final ItineraryRepository itineraryRepository;
         private final ReservationRepository reservationRepository;
         private final Scheduler dbScheduler;
@@ -72,7 +77,9 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                                                 request.childCount(),
                                                 request.childAges()
                                         )
-                                );
+                                        );
+                                chatMessageRepository.save(
+                                                ChatMessage.of(chatRoom.getId(), "assistant", INITIAL_AI_MESSAGE));
                                 return new CreateChatRoomResponse(
                                                 chatRoom.getId(),
                                                 chatRoom.getName(),
