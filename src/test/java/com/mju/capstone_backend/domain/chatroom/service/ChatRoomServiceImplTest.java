@@ -20,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
@@ -55,6 +57,9 @@ class ChatRoomServiceImplTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     @InjectMocks
     private ChatRoomServiceImpl chatRoomService;
 
@@ -67,6 +72,13 @@ class ChatRoomServiceImplTest {
         var field = ChatRoomServiceImpl.class.getDeclaredField("dbScheduler");
         field.setAccessible(true);
         field.set(chatRoomService, Schedulers.immediate());
+
+        // transactionTemplate.execute()가 콜백을 실제로 실행하도록 설정
+        // lenient: 트랜잭션을 거치지 않는 에러 경로 테스트에서 "unused stubbing" 경고 방지
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(inv -> {
+            TransactionCallback<?> callback = inv.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     // ─── createChatRoom ───────────────────────────────────────────────────────
