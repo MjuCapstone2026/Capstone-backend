@@ -50,58 +50,87 @@
   {
     "reservations": [
       {
-        "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
-        "itineraryId": "be4d9d2d-1d84-4b1b-bf4d-1ac6b9cc7f22",
-        "type": "flight",
+        "reservationId": "7d1a1213-f8c8-473e-ae19-3f17cb2ae8e5",
+        "itineraryId": "db2ed15e-bdcb-4b08-8f61-9db4868751e5",
+        "type": "car_rental",
+        "status": "confirmed",
+        "bookedBy": "ai",
+        "bookingUrl": null,
+        "externalRefId": "HERTZ-20260501",
+        "detail": {
+          "pickup": {
+            "datetime": "2026-05-01T13:00:00",
+            "location": "NRT T1"
+          },
+          "company": "Hertz",
+          "dropoff": {
+            "datetime": "2026-05-03T11:00:00",
+            "location": "NRT T1"
+          },
+          "car_model": "Toyota Camry"
+        },
+        "totalPrice": 95000,
+        "currency": "KRW",
+        "reservedAt": "2026-05-04T11:42:01.574526Z",
+        "cancelledAt": null,
+        "createdAt": "2026-05-04T11:42:01.358771Z",
+        "updatedAt": "2026-05-04T11:42:01.719527Z"
+      },
+      {
+        "reservationId": "0d765dae-4edd-4f80-b472-fc0714b31fc2",
+        "itineraryId": "db2ed15e-bdcb-4b08-8f61-9db4868751e5",
+        "type": "accommodation",
         "status": "confirmed",
         "bookedBy": "user",
-        "bookingUrl": "https://booking.example.com/flight/123",
-        "externalRefId": "KE12345678",
+        "bookingUrl": null,
+        "externalRefId": "LOTTE-20260501",
         "detail": {
-          "airline": "Korean Air",
-          "flight_no": "KE721",
+          "guests": 2,
+          "check_in": "2026-05-01",
+          "check_out": "2026-05-03",
+          "room_type": "디럭스 더블",
+          "hotel_name": "롯데호텔 도쿄"
+        },
+        "totalPrice": 180000,
+        "currency": "KRW",
+        "reservedAt": "2026-05-04T11:42:01.574526Z",
+        "cancelledAt": null,
+        "createdAt": "2026-05-04T11:42:01.358771Z",
+        "updatedAt": "2026-05-04T11:42:01.695785Z"
+      },
+      {
+        "reservationId": "7c87a366-c9f6-40b6-aa55-64f878f3df1a",
+        "itineraryId": "db2ed15e-bdcb-4b08-8f61-9db4868751e5",
+        "type": "flight",
+        "status": "confirmed",
+        "bookedBy": "ai",
+        "bookingUrl": null,
+        "externalRefId": "KE-20260501-001",
+        "detail": {
+          "airline": "대한항공",
+          "arrival": {
+            "airport": "NRT",
+            "datetime": "2026-05-01T11:30:00"
+          },
           "departure": {
             "airport": "ICN",
             "datetime": "2026-05-01T09:00:00"
           },
-          "arrival": {
-            "airport": "NRT",
-            "datetime": "2026-05-01T11:30:00"
-          }
+          "flight_no": "KE123",
+          "passengers": [
+            {
+              "name": "홍길동",
+              "passport": "M12345678"
+            }
+          ],
+          "seat_class": "economy"
         },
-        "totalPrice": 320000.00,
+        "totalPrice": 350000,
         "currency": "KRW",
-        "reservedAt": "2026-04-03T21:30:00Z",
+        "reservedAt": "2026-05-04T11:42:01.574526Z",
         "cancelledAt": null,
-        "createdAt": "2026-04-03T21:20:00Z",
-        "updatedAt": "2026-04-03T21:30:00Z"
-      },
-      {
-        "reservationId": "7f2f7e4f-5d29-47f7-8561-8ff22f0b2fd8",
-        "itineraryId": "3db203a5-d4fa-41b8-b30f-1d4cf58ce0e6",
-        "type": "flight",
-        "status": "confirmed",
-        "bookedBy": "ai",
-        "bookingUrl": "https://booking.example.com/flight/456",
-        "externalRefId": "OZ98765432",
-        "detail": {
-          "airline": "Asiana",
-          "flight_no": "OZ108",
-          "departure": {
-            "airport": "FCO",
-            "datetime": "2026-06-10T12:20:00"
-          },
-          "arrival": {
-            "airport": "ICN",
-            "datetime": "2026-06-11T06:20:00"
-          }
-        },
-        "totalPrice": 890000.00,
-        "currency": "KRW",
-        "reservedAt": "2026-04-05T10:10:00Z",
-        "cancelledAt": null,
-        "createdAt": "2026-04-05T10:00:00Z",
-        "updatedAt": "2026-04-05T10:10:00Z"
+        "createdAt": "2026-05-04T11:42:01.358771Z",
+        "updatedAt": "2026-05-04T11:42:01.635789Z"
       }
     ]
   }
