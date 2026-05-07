@@ -120,10 +120,19 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         case ChatStreamEvent.Done done -> Mono.fromCallable(
                                 () -> processAndSave(chatRoom, content, done.payload())
                         ).subscribeOn(dbScheduler)
-                        .map(response -> ServerSentEvent.<Object>builder()
-                                .event("done")
-                                .data(response)
-                                .build());
+                        .map(response -> {
+                            try {
+                                String json = objectMapper.writerWithDefaultPrettyPrinter()
+                                        .writeValueAsString(response);
+                                return ServerSentEvent.<Object>builder()
+                                        .event("done")
+                                        .data(json)
+                                        .build();
+                            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                        "Failed to serialize done payload.");
+                            }
+                        });
                     })
                     .onErrorMap(
                             e -> !(e instanceof ResponseStatusException),
@@ -231,10 +240,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
             List<Map<String, Object>> normalized = entry.getValue().stream()
                     .map(item -> {
-                        Map<String, Object> n = new LinkedHashMap<>(item);
-                        n.putIfAbsent("note", "");
-                        n.putIfAbsent("cost", null);
-                        n.remove("status");
+                        Map<String, Object> n = new LinkedHashMap<>();
+                        n.put("plan_name", item.get("plan_name"));
+                        n.put("time", item.get("time"));
+                        n.put("place", item.get("place"));
+                        n.put("note", item.getOrDefault("note", ""));
+                        n.put("cost", item.get("cost"));
                         n.put("status", existingStatusByTime.getOrDefault((String) item.get("time"), "todo"));
                         return n;
                     })

@@ -294,10 +294,12 @@ public class ItineraryServiceImpl implements ItineraryService {
 
                 List<Map<String, Object>> sorted = entry.getValue().stream()
                         .map(item -> {
-                            Map<String, Object> normalized = new LinkedHashMap<>(item);
-                            normalized.putIfAbsent("note", "");
-                            normalized.putIfAbsent("cost", null);
-                            normalized.remove("status");
+                            Map<String, Object> normalized = new LinkedHashMap<>();
+                            normalized.put("plan_name", item.get("plan_name"));
+                            normalized.put("time", item.get("time"));
+                            normalized.put("place", item.get("place"));
+                            normalized.put("note", item.getOrDefault("note", ""));
+                            normalized.put("cost", item.get("cost"));
                             normalized.put("status", existingStatusByTime.getOrDefault(
                                     (String) item.get("time"), "todo"));
                             return normalized;
