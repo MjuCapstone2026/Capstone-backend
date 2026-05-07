@@ -87,6 +87,8 @@
 
     - itinerary 변경일 때:
 
+        > AI 서버는 수정된 날짜만 전송하지만, 백엔드에서 기존 일정에 병합한 뒤 **전체 날짜**를 반환합니다.
+
         ```
         event: done
         data: {
@@ -108,8 +110,14 @@
             "endDate": "2026-05-04",
             "dayPlans": {
               "2026-05-01": [
-                {"plan_name": 0, "time": "09:00 ~ 10:00", "place": "창덕궁", "note": "후원 투어 예약 필요", "status": "todo"}
-              ]
+                {"index": 0, "plan_name": "창덕궁 방문", "time": "09:00 ~ 12:00", "place": "창덕궁", "note": "후원 투어 예약 필요", "cost": {"amount": 3000, "currency": "KRW", "amount_krw": null}, "status": "todo"},
+                {"index": 1, "plan_name": "광장시장 점심", "time": "12:00 ~ 14:30", "place": "광장시장", "note": "", "cost": null, "status": "todo"}
+              ],
+              "2026-05-02": [
+                {"index": 0, "plan_name": "N서울타워 방문", "time": "10:00 ~ 12:00", "place": "남산타워", "note": "", "cost": null, "status": "todo"}
+              ],
+              "2026-05-03": [],
+              "2026-05-04": []
             },
             "updatedAt": "2026-04-03T22:00:05"
           }
@@ -266,11 +274,12 @@
     - `chat` → `chat_messages` 저장 + embedding 저장 `memory`가 존재하면 `chat_rooms.ai_summary`, `chat_rooms.preferences`를 갱신합니다.
     - 추가 도메인 처리 없이 종료합니다.
     - `itinerary` → chat_messages 저장 + embedding 저장 + itineraries 수정 + itinerary_logs 스냅샷 저장
+        - AI 서버는 수정된 날짜만 전송하며, 백엔드에서 기존 `day_plans`에 병합(수정되지 않은 날짜는 그대로 유지)합니다.
         - 저장 전 각 날짜의 아이템 배열을 `time` 오름차순으로 정렬하여 저장합니다.
     - `reservation` → chat_messages 저장 + embedding 저장 + reservations 저장 + reservation_histories 저장
     - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 + reservation_histories 저장
     - `change` → 사용자가 일정의 예산, 인원(성인수, 아이수, 아이 나이) 등 기본 정보 수정을 llm으로 요청할 경우
-9. **done 이벤트 전송**: 저장 완료 후 최종 메타데이터를 done 이벤트로 프론트엔드에 전송합니다. → 아이템 배열은 `time` 오름차순으로 DB에 저장되며, 백엔드가 index를 부여하여 반환합니다. → `dayPlans` 에서 index를 추가해서 프런트로 반환
+9. **done 이벤트 전송**: 저장 완료 후 최종 메타데이터를 done 이벤트로 프론트엔드에 전송합니다. `itinerary` 타입의 경우 병합 후 전체 날짜의 `dayPlans`를 반환합니다. 아이템 배열은 `time` 오름차순 정렬 후 `index`(0부터)를 부여하여 반환합니다.
 
 ### **4.2 DB 저장 구조**
 
