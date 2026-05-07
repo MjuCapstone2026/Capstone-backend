@@ -296,6 +296,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                         .map(item -> {
                             Map<String, Object> normalized = new LinkedHashMap<>(item);
                             normalized.putIfAbsent("note", "");
+                            normalized.putIfAbsent("cost", null);
                             normalized.remove("status");
                             normalized.put("status", existingStatusByTime.getOrDefault(
                                     (String) item.get("time"), "todo"));
@@ -318,6 +319,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                         .map(item -> {
                             Map<String, Object> n = new LinkedHashMap<>(item);
                             n.putIfAbsent("note", "");
+                            n.putIfAbsent("cost", null);
                             return n;
                         })
                         .sorted(Comparator.comparing(item ->
