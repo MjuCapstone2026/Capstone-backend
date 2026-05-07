@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
@@ -81,13 +82,12 @@ class ItineraryServiceImplTest {
         mapperField.setAccessible(true);
         mapperField.set(itineraryService, new ObjectMapper());
 
-        // transactionTemplate.executeWithoutResult()가 콜백을 실제로 실행하도록 설정
+        // transactionTemplate.execute()가 콜백을 실제로 실행하도록 설정
         // lenient: 트랜잭션을 거치지 않는 에러 경로 테스트에서 "unused stubbing" 경고 방지
-        lenient().doAnswer(inv -> {
-            ((java.util.function.Consumer<org.springframework.transaction.TransactionStatus>) inv.getArgument(0))
-                    .accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(inv -> {
+            TransactionCallback<?> callback = inv.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     // ─── getItineraries ───────────────────────────────────────────────────────
