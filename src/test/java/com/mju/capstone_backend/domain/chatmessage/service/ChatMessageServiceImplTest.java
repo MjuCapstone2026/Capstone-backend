@@ -1,9 +1,12 @@
 package com.mju.capstone_backend.domain.chatmessage.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
@@ -36,7 +40,16 @@ class ChatMessageServiceImplTest {
     private ChatMessageRepository chatMessageRepository;
 
     @Mock
+    private ItineraryRepository itineraryRepository;
+
+    @Mock
+    private ItineraryLogRepository itineraryLogRepository;
+
+    @Mock
     private FastApiChatClient fastApiChatClient;
+
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private ChatMessageServiceImpl chatMessageService;
@@ -47,10 +60,14 @@ class ChatMessageServiceImplTest {
     private static final UUID MSG_ID_2 = UUID.randomUUID();
 
     @BeforeEach
-    void injectScheduler() throws Exception {
-        var field = ChatMessageServiceImpl.class.getDeclaredField("dbScheduler");
-        field.setAccessible(true);
-        field.set(chatMessageService, Schedulers.immediate());
+    void injectSchedulerAndMapper() throws Exception {
+        var schedulerField = ChatMessageServiceImpl.class.getDeclaredField("dbScheduler");
+        schedulerField.setAccessible(true);
+        schedulerField.set(chatMessageService, Schedulers.immediate());
+
+        var mapperField = ChatMessageServiceImpl.class.getDeclaredField("objectMapper");
+        mapperField.setAccessible(true);
+        mapperField.set(chatMessageService, new ObjectMapper());
     }
 
     // ─── 성공 케이스 ──────────────────────────────────────────────────────────

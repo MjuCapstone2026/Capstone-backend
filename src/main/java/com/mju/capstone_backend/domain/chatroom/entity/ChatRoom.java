@@ -54,4 +54,9 @@ public class ChatRoom {
     public void updateName(String name) {
         this.name = name;
     }
+
+    public void updateMemory(String aiSummary, String preferences) {
+        if (aiSummary != null) this.aiSummary = aiSummary;
+        if (preferences != null) this.preferences = preferences;
+    }
 }
