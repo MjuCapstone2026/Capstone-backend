@@ -791,6 +791,64 @@ class ItineraryServiceImplTest {
     }
 
     @Test
+    @DisplayName("day_plans 수정 - cost 필드가 있는 아이템은 값이 보존됨")
+    void patchDayPlans_costFieldPreserved() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, Object> costObj = Map.of("amount", 450000, "currency", "KRW", "amount_krw", 450000);
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "항공편", "time", "10:00 ~ 12:30",
+                                "place", "나리타공항", "note", "직항", "cost", costObj)
+                )
+        );
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, new PatchDayPlansRequest(requestDayPlans)))
+                .assertNext(res -> {
+                    var item = res.dayPlans().get("2026-05-01").get(0);
+                    assertThat(item.get("cost")).isNotNull();
+                    @SuppressWarnings("unchecked")
+                    var cost = (Map<String, Object>) item.get("cost");
+                    assertThat(cost.get("currency")).isEqualTo("KRW");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - cost 없는 아이템은 cost: null로 정규화됨")
+    void patchDayPlans_costNormalizedToNullWhenAbsent() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00", "place", "경복궁")
+                )
+        );
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, new PatchDayPlansRequest(requestDayPlans)))
+                .assertNext(res -> {
+                    var item = res.dayPlans().get("2026-05-01").get(0);
+                    assertThat(item).containsKey("cost");
+                    assertThat(item.get("cost")).isNull();
+                })
+                .verifyComplete();
+    }
+
+    @Test
     @DisplayName("day_plans 수정 - 다른 사용자의 일정 수정 시 403 반환")
     void patchDayPlans_otherUser_returns403() {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
