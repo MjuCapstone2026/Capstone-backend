@@ -268,10 +268,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                     "Failed to serialize day plans.");
         }
 
-        transactionTemplate.executeWithoutResult(status -> {
+        Itinerary savedItinerary = transactionTemplate.execute(status -> {
             itineraryLogRepository.save(ItineraryLog.of(itinerary));
             itinerary.updateDayPlans(resultJson);
-            itineraryRepository.save(itinerary);
+            return itineraryRepository.save(itinerary);
         });
 
         Map<String, List<Map<String, Object>>> indexedDayPlans = parseDayPlansWithIndex(resultJson);
@@ -283,7 +283,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         itinerary.getStartDate(),
                         itinerary.getEndDate(),
                         indexedDayPlans,
-                        itinerary.getUpdatedAt()),
+                        savedItinerary.getUpdatedAt()),
                 null, null, null);
     }
 
@@ -305,7 +305,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 ? adjustDayPlans(itinerary.getDayPlans(), effectiveStart, effectiveEnd)
                 : null;
 
-        transactionTemplate.executeWithoutResult(status -> {
+        Itinerary savedItinerary = transactionTemplate.execute(status -> {
             itineraryLogRepository.save(ItineraryLog.of(itinerary));
             itinerary.updateBasicInfo(
                     change.startDate(), change.endDate(),
@@ -313,7 +313,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                     change.adultCount(),
                     change.childCount(), change.childAges(),
                     updatedDayPlans);
-            itineraryRepository.save(itinerary);
+            return itineraryRepository.save(itinerary);
         });
 
         return new MessageDoneResponse(
@@ -327,7 +327,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         itinerary.getAdultCount(),
                         itinerary.getChildCount(),
                         itinerary.getChildAges(),
-                        itinerary.getUpdatedAt()),
+                        savedItinerary.getUpdatedAt()),
                 null, null);
     }
 
