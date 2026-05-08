@@ -1,31 +1,56 @@
 package com.mju.capstone_backend.domain.chatmessage.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mju.capstone_backend.domain.chatmessage.dto.ChatStreamEvent;
+import com.mju.capstone_backend.domain.chatmessage.dto.FastApiChatRequest;
+import com.mju.capstone_backend.domain.chatmessage.dto.FastApiDonePayload;
 import com.mju.capstone_backend.domain.chatmessage.dto.GetChatRoomMessagesResponse;
+import com.mju.capstone_backend.domain.chatmessage.dto.MessageChunkResponse;
+import com.mju.capstone_backend.domain.chatmessage.dto.MessageDoneResponse;
 import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
+import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
+import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatMessageServiceImpl implements ChatMessageService {
 
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final ItineraryRepository itineraryRepository;
+    private final ItineraryLogRepository itineraryLogRepository;
     private final FastApiChatClient fastApiChatClient;
+    private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
     private final Scheduler dbScheduler;
 
     @Override
@@ -82,39 +107,277 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             return chatRoom;
         }).subscribeOn(dbScheduler)
         .flatMapMany(chatRoom -> {
-            // TODO: FastAPI SSE 연동 구현 — fastApiChatClient.stream() 호출
-            //
-            // 1. MemoryPayload 구성 (chatRoom.getAiSummary(), chatRoom.getPreferences())
-            //    chatRoom.getPreferences()는 JSON String → Map<String,Object> 역직렬화 필요
-            //
-            // 2. fastApiChatClient.stream(roomId, content, memoryPayload)
-            //    .concatMap(event -> switch(event) { ... })
-            //
-            // [Chunk 이벤트] ChatStreamEvent.Chunk
-            //   → SSE event="chunk", data=MessageChunkResponse(content) 중계
-            //
-            // [Done 이벤트] ChatStreamEvent.Done
-            //   Mono.fromCallable(() -> { ... }).subscribeOn(dbScheduler) 블록 내:
-            //   (a) user / assistant ChatMessage 저장 (chatMessageRepository.save)
-            //   (b) embedding 저장: updateEmbedding(msgId, embedding.toString())
-            //   (c) memory 갱신 (done.memory != null 이면 type 무관하게 처리)
-            //       TODO: ChatRoom.updateMemory(aiSummary, preferencesJson) — 팀원 승인 후 구현
-            //   (d) type 분기 (sealed interface pattern switch):
-            //       - Chat        → 추가 처리 없음
-            //       - Itinerary   → itinerary_logs 스냅샷 → dayPlans full replacement
-            //                       (동일 time → 기존 status 유지, 신규 → "todo", time 오름차순)
-            //       - Change      → itinerary_logs 스냅샷 → itineraries 기본 정보 갱신
-            //                       (날짜 변경 시 day_plans 키 조정, destination 수정 불가)
-            //       - Reservation → itineraryId 조회(roomId 경유) → reservations 저장
-            //                       bookedBy="ai", status="confirmed"
-            //       - Cancel      → reservations.status="cancelled", cancelled_at 저장
-            //       - null type   → log.warn + Chat fallback
-            //       - unknown     → FastApiDonePayload.Deserializer → IllegalArgumentException
-            //                       → 502 Bad Gateway
-            //   (e) SSE event="done", data=MessageDoneResponse 반환
-            //
-            // .onErrorMap(e -> !(e instanceof ResponseStatusException), e -> RSE(500))
-            return Flux.error(new UnsupportedOperationException("AI integration pending"));
+            FastApiChatRequest.MemoryPayload memoryPayload = buildMemoryPayload(chatRoom);
+
+            return fastApiChatClient.stream(roomId, content, memoryPayload)
+                    .concatMap(event -> switch (event) {
+                        case ChatStreamEvent.Chunk chunk -> Mono.<ServerSentEvent<Object>>just(
+                                ServerSentEvent.<Object>builder()
+                                        .event("chunk")
+                                        .data(new MessageChunkResponse(chunk.content()))
+                                        .build()
+                        );
+                        case ChatStreamEvent.Done done -> Mono.fromCallable(
+                                () -> processAndSave(chatRoom, content, done.payload())
+                        ).subscribeOn(dbScheduler)
+                        .map(response -> {
+                            try {
+                                String json = objectMapper.writerWithDefaultPrettyPrinter()
+                                        .writeValueAsString(response);
+                                return ServerSentEvent.<Object>builder()
+                                        .event("done")
+                                        .data(json)
+                                        .build();
+                            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                        "Failed to serialize done payload.");
+                            }
+                        });
+                    })
+                    .onErrorMap(
+                            e -> !(e instanceof ResponseStatusException),
+                            e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                    "Failed to process AI response.")
+                    );
         });
+    }
+
+    private FastApiChatRequest.MemoryPayload buildMemoryPayload(ChatRoom chatRoom) {
+        if (chatRoom.getAiSummary() == null && chatRoom.getPreferences() == null) {
+            return null;
+        }
+        try {
+            Map<String, Object> prefsMap = chatRoom.getPreferences() != null
+                    ? objectMapper.readValue(chatRoom.getPreferences(), new TypeReference<>() {})
+                    : null;
+            return new FastApiChatRequest.MemoryPayload(chatRoom.getAiSummary(), prefsMap);
+        } catch (Exception e) {
+            log.warn("Failed to parse chatRoom preferences JSON, sending null memory: {}", e.getMessage());
+            return new FastApiChatRequest.MemoryPayload(chatRoom.getAiSummary(), null);
+        }
+    }
+
+    private MessageDoneResponse processAndSave(ChatRoom chatRoom, String userContent,
+                                               FastApiDonePayload payload) {
+        ChatMessage userMsg = chatMessageRepository.save(
+                ChatMessage.of(chatRoom.getId(), "user", userContent));
+        if (payload.userMessage().embedding() != null) {
+            chatMessageRepository.updateEmbedding(userMsg.getId(),
+                    payload.userMessage().embedding().toString());
+        }
+
+        ChatMessage assistantMsg = chatMessageRepository.save(
+                ChatMessage.of(chatRoom.getId(), "assistant", payload.assistantMessage().content()));
+        if (payload.assistantMessage().embedding() != null) {
+            chatMessageRepository.updateEmbedding(assistantMsg.getId(),
+                    payload.assistantMessage().embedding().toString());
+        }
+
+        if (payload.memory() != null) {
+            try {
+                String preferencesJson = payload.memory().preferences() != null
+                        ? objectMapper.writeValueAsString(payload.memory().preferences())
+                        : null;
+                chatRoom.updateMemory(payload.memory().aiSummary(), preferencesJson);
+                chatRoomRepository.save(chatRoom);
+            } catch (Exception e) {
+                log.error("Failed to update chat room memory for roomId={}: {}", chatRoom.getId(), e.getMessage());
+            }
+        }
+
+        MessageDoneResponse.MessageItem userItem = new MessageDoneResponse.MessageItem(
+                userMsg.getId(), userMsg.getRole(), userMsg.getContent(), userMsg.getCreatedAt());
+        MessageDoneResponse.MessageItem assistantItem = new MessageDoneResponse.MessageItem(
+                assistantMsg.getId(), assistantMsg.getRole(), assistantMsg.getContent(), assistantMsg.getCreatedAt());
+
+        return switch (payload) {
+            case FastApiDonePayload.Chat ignored ->
+                    new MessageDoneResponse(userItem, assistantItem, null, null, null, null);
+
+            case FastApiDonePayload.Itinerary itinerary ->
+                    processItinerary(chatRoom.getId(), userItem, assistantItem, itinerary);
+
+            case FastApiDonePayload.Change change ->
+                    processChange(chatRoom.getId(), userItem, assistantItem, change);
+
+            case FastApiDonePayload.Reservation ignored -> {
+                log.warn("Reservation type received but not yet implemented, roomId={}", chatRoom.getId());
+                yield new MessageDoneResponse(userItem, assistantItem, null, null, null, null);
+            }
+
+            case FastApiDonePayload.Cancel ignored -> {
+                log.warn("Cancel type received but not yet implemented, roomId={}", chatRoom.getId());
+                yield new MessageDoneResponse(userItem, assistantItem, null, null, null, null);
+            }
+        };
+    }
+
+    private MessageDoneResponse processItinerary(UUID roomId,
+                                                 MessageDoneResponse.MessageItem userItem,
+                                                 MessageDoneResponse.MessageItem assistantItem,
+                                                 FastApiDonePayload.Itinerary payload) {
+        Itinerary itinerary = itineraryRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Itinerary not found for this chat room."));
+
+        Map<String, List<Map<String, Object>>> existingDayPlans;
+        try {
+            existingDayPlans = objectMapper.readValue(itinerary.getDayPlans(), new TypeReference<>() {});
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to parse existing day plans.");
+        }
+
+        Map<String, List<Map<String, Object>>> merged = new LinkedHashMap<>(existingDayPlans);
+
+        for (Map.Entry<String, List<Map<String, Object>>> entry : payload.itinerary().dayPlans().entrySet()) {
+            List<Map<String, Object>> existingItems = existingDayPlans.getOrDefault(entry.getKey(), List.of());
+            Map<String, String> existingStatusByTime = new LinkedHashMap<>();
+            for (Map<String, Object> item : existingItems) {
+                existingStatusByTime.put((String) item.get("time"),
+                        (String) item.getOrDefault("status", "todo"));
+            }
+
+            List<Map<String, Object>> normalized = entry.getValue().stream()
+                    .map(item -> {
+                        Map<String, Object> n = new LinkedHashMap<>();
+                        n.put("plan_name", item.get("plan_name"));
+                        n.put("time", item.get("time"));
+                        n.put("place", item.get("place"));
+                        n.put("note", item.getOrDefault("note", ""));
+                        n.put("cost", item.get("cost"));
+                        n.put("status", existingStatusByTime.getOrDefault((String) item.get("time"), "todo"));
+                        return n;
+                    })
+                    .sorted(Comparator.comparing(item ->
+                            LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])))
+                    .toList();
+            merged.put(entry.getKey(), normalized);
+        }
+
+        Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+        merged.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> result.put(e.getKey(), e.getValue()));
+
+        String resultJson;
+        try {
+            resultJson = objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to serialize day plans.");
+        }
+
+        Itinerary savedItinerary = transactionTemplate.execute(status -> {
+            itineraryLogRepository.save(ItineraryLog.of(itinerary));
+            itinerary.updateDayPlans(resultJson);
+            return itineraryRepository.save(itinerary);
+        });
+
+        Map<String, List<Map<String, Object>>> indexedDayPlans = parseDayPlansWithIndex(resultJson);
+
+        return new MessageDoneResponse(
+                userItem, assistantItem,
+                new MessageDoneResponse.ItineraryResult(
+                        itinerary.getId(),
+                        itinerary.getStartDate(),
+                        itinerary.getEndDate(),
+                        indexedDayPlans,
+                        savedItinerary.getUpdatedAt()),
+                null, null, null);
+    }
+
+    private MessageDoneResponse processChange(UUID roomId,
+                                              MessageDoneResponse.MessageItem userItem,
+                                              MessageDoneResponse.MessageItem assistantItem,
+                                              FastApiDonePayload.Change payload) {
+        Itinerary itinerary = itineraryRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Itinerary not found for this chat room."));
+
+        FastApiDonePayload.ChangeData change = payload.change();
+
+        LocalDate effectiveStart = change.startDate() != null ? change.startDate() : itinerary.getStartDate();
+        LocalDate effectiveEnd = change.endDate() != null ? change.endDate() : itinerary.getEndDate();
+        boolean dateChanged = !effectiveStart.equals(itinerary.getStartDate())
+                || !effectiveEnd.equals(itinerary.getEndDate());
+        String updatedDayPlans = dateChanged
+                ? adjustDayPlans(itinerary.getDayPlans(), effectiveStart, effectiveEnd)
+                : null;
+
+        Itinerary savedItinerary = transactionTemplate.execute(status -> {
+            itineraryLogRepository.save(ItineraryLog.of(itinerary));
+            itinerary.updateBasicInfo(
+                    change.startDate(), change.endDate(),
+                    change.budget(),
+                    change.adultCount(),
+                    change.childCount(), change.childAges(),
+                    updatedDayPlans);
+            return itineraryRepository.save(itinerary);
+        });
+
+        return new MessageDoneResponse(
+                userItem, assistantItem, null,
+                new MessageDoneResponse.ChangeResult(
+                        itinerary.getId(),
+                        itinerary.getStartDate(),
+                        itinerary.getEndDate(),
+                        (int) ChronoUnit.DAYS.between(itinerary.getStartDate(), itinerary.getEndDate()) + 1,
+                        itinerary.getBudget(),
+                        itinerary.getAdultCount(),
+                        itinerary.getChildCount(),
+                        itinerary.getChildAges(),
+                        savedItinerary.getUpdatedAt()),
+                null, null);
+    }
+
+    private String adjustDayPlans(String currentJson, LocalDate newStart, LocalDate newEnd) {
+        try {
+            Map<String, Object> dayPlans = objectMapper.readValue(currentJson, new TypeReference<>() {});
+            dayPlans.keySet().removeIf(key -> {
+                LocalDate date = LocalDate.parse(key);
+                return date.isBefore(newStart) || date.isAfter(newEnd);
+            });
+            LocalDate cursor = newStart;
+            while (!cursor.isAfter(newEnd)) {
+                dayPlans.putIfAbsent(cursor.toString(), List.of());
+                cursor = cursor.plusDays(1);
+            }
+            Map<String, Object> sorted = new LinkedHashMap<>();
+            dayPlans.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> sorted.put(e.getKey(), e.getValue()));
+            return objectMapper.writeValueAsString(sorted);
+        } catch (Exception e) {
+            return currentJson;
+        }
+    }
+
+    private Map<String, List<Map<String, Object>>> parseDayPlansWithIndex(String dayPlansJson) {
+        try {
+            Map<String, List<Map<String, Object>>> raw =
+                    objectMapper.readValue(dayPlansJson, new TypeReference<>() {});
+
+            Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+            for (Map.Entry<String, List<Map<String, Object>>> entry : raw.entrySet()) {
+                List<Map<String, Object>> items = new ArrayList<>(entry.getValue());
+                items.sort(Comparator.comparing(item -> {
+                    String time = (String) item.get("time");
+                    return LocalTime.parse(time.split(" ~ ")[0]);
+                }));
+
+                List<Map<String, Object>> indexed = new ArrayList<>();
+                for (int i = 0; i < items.size(); i++) {
+                    Map<String, Object> withIndex = new LinkedHashMap<>();
+                    withIndex.put("index", i);
+                    withIndex.putAll(items.get(i));
+                    indexed.add(withIndex);
+                }
+                result.put(entry.getKey(), indexed);
+            }
+            return result;
+        } catch (Exception e) {
+            return new LinkedHashMap<>();
+        }
     }
 }

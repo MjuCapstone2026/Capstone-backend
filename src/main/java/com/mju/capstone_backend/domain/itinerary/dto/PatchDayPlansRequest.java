@@ -13,13 +13,15 @@ import java.util.Map;
                 "plan_name": "경복궁 방문",
                 "time": "09:00 ~ 12:00",
                 "place": "경복궁",
-                "note": "한복 대여 추천"
+                "note": "한복 대여 추천",
+                "cost": {"amount": 3000, "currency": "KRW", "amount_krw": null}
               },
               {
                 "plan_name": "광장시장 점심",
                 "time": "12:00 ~ 14:30",
                 "place": "광장시장",
-                "note": ""
+                "note": "",
+                "cost": null
               }
             ],
             "2026-05-02": []

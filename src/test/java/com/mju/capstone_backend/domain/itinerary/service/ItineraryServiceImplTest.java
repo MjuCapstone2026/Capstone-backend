@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
@@ -81,13 +82,12 @@ class ItineraryServiceImplTest {
         mapperField.setAccessible(true);
         mapperField.set(itineraryService, new ObjectMapper());
 
-        // transactionTemplate.executeWithoutResult()가 콜백을 실제로 실행하도록 설정
+        // transactionTemplate.execute()가 콜백을 실제로 실행하도록 설정
         // lenient: 트랜잭션을 거치지 않는 에러 경로 테스트에서 "unused stubbing" 경고 방지
-        lenient().doAnswer(inv -> {
-            ((java.util.function.Consumer<org.springframework.transaction.TransactionStatus>) inv.getArgument(0))
-                    .accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(inv -> {
+            TransactionCallback<?> callback = inv.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     // ─── getItineraries ───────────────────────────────────────────────────────
@@ -788,6 +788,64 @@ class ItineraryServiceImplTest {
                         && rse.getStatusCode() == BAD_REQUEST
                         && rse.getReason().contains("No changes detected"))
                 .verify();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - cost 필드가 있는 아이템은 값이 보존됨")
+    void patchDayPlans_costFieldPreserved() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, Object> costObj = Map.of("amount", 450000, "currency", "KRW", "amount_krw", 450000);
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "항공편", "time", "10:00 ~ 12:30",
+                                "place", "나리타공항", "note", "직항", "cost", costObj)
+                )
+        );
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, new PatchDayPlansRequest(requestDayPlans)))
+                .assertNext(res -> {
+                    var item = res.dayPlans().get("2026-05-01").get(0);
+                    assertThat(item.get("cost")).isNotNull();
+                    @SuppressWarnings("unchecked")
+                    var cost = (Map<String, Object>) item.get("cost");
+                    assertThat(cost.get("currency")).isEqualTo("KRW");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("day_plans 수정 - cost 없는 아이템은 cost: null로 정규화됨")
+    void patchDayPlans_costNormalizedToNullWhenAbsent() {
+        Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{\"2026-05-01\":[]}");
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
+
+        Map<String, List<Map<String, Object>>> requestDayPlans = Map.of(
+                "2026-05-01", List.of(
+                        Map.of("plan_name", "경복궁", "time", "09:00 ~ 12:00", "place", "경복궁")
+                )
+        );
+
+        when(userRepository.existsById(CLERK_ID)).thenReturn(true);
+        when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(itineraryLogRepository.save(any(ItineraryLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(itineraryRepository.save(any(Itinerary.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(itineraryService.patchDayPlans(CLERK_ID, ITINERARY_ID, new PatchDayPlansRequest(requestDayPlans)))
+                .assertNext(res -> {
+                    var item = res.dayPlans().get("2026-05-01").get(0);
+                    assertThat(item).containsKey("cost");
+                    assertThat(item.get("cost")).isNull();
+                })
+                .verifyComplete();
     }
 
     @Test

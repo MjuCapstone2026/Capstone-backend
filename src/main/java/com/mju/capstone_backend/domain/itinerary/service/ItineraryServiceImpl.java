@@ -230,7 +230,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                     ? adjustDayPlans(itinerary.getDayPlans(), effectiveStart, effectiveEnd)
                     : null;
 
-            transactionTemplate.executeWithoutResult(status -> {
+            Itinerary saved = transactionTemplate.execute(status -> {
                 itineraryLogRepository.save(ItineraryLog.of(itinerary));
                 itinerary.updateBasicInfo(
                         request.startDate(), request.endDate(),
@@ -238,7 +238,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                         request.adultCount(),
                         request.childCount(), request.childAges(),
                         updatedDayPlans);
-                itineraryRepository.save(itinerary);
+                return itineraryRepository.save(itinerary);
             });
 
             return new PatchItineraryResponse(
@@ -251,7 +251,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                     itinerary.getAdultCount(),
                     itinerary.getChildCount(),
                     itinerary.getChildAges(),
-                    itinerary.getUpdatedAt());
+                    saved.getUpdatedAt());
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
@@ -294,9 +294,12 @@ public class ItineraryServiceImpl implements ItineraryService {
 
                 List<Map<String, Object>> sorted = entry.getValue().stream()
                         .map(item -> {
-                            Map<String, Object> normalized = new LinkedHashMap<>(item);
-                            normalized.putIfAbsent("note", "");
-                            normalized.remove("status");
+                            Map<String, Object> normalized = new LinkedHashMap<>();
+                            normalized.put("plan_name", item.get("plan_name"));
+                            normalized.put("time", item.get("time"));
+                            normalized.put("place", item.get("place"));
+                            normalized.put("note", item.getOrDefault("note", ""));
+                            normalized.put("cost", item.get("cost"));
                             normalized.put("status", existingStatusByTime.getOrDefault(
                                     (String) item.get("time"), "todo"));
                             return normalized;
@@ -318,6 +321,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                         .map(item -> {
                             Map<String, Object> n = new LinkedHashMap<>(item);
                             n.putIfAbsent("note", "");
+                            n.putIfAbsent("cost", null);
                             return n;
                         })
                         .sorted(Comparator.comparing(item ->
@@ -333,13 +337,13 @@ public class ItineraryServiceImpl implements ItineraryService {
 
             String resultJson = objectMapper.writeValueAsString(result);
 
-            transactionTemplate.executeWithoutResult(status -> {
+            Itinerary saved = transactionTemplate.execute(status -> {
                 itineraryLogRepository.save(ItineraryLog.of(itinerary));
                 itinerary.updateDayPlans(resultJson);
-                itineraryRepository.save(itinerary);
+                return itineraryRepository.save(itinerary);
             });
 
-            return new PatchDayPlansResponse(itinerary.getId(), result, itinerary.getUpdatedAt());
+            return new PatchDayPlansResponse(itinerary.getId(), result, saved.getUpdatedAt());
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
@@ -493,9 +497,9 @@ public class ItineraryServiceImpl implements ItineraryService {
             }
 
             itinerary.updateStatus(request.status());
-            itineraryRepository.save(itinerary);
+            Itinerary saved = itineraryRepository.save(itinerary);
 
-            return new PatchStatusResponse(itinerary.getId(), itinerary.getStatus(), itinerary.getUpdatedAt());
+            return new PatchStatusResponse(itinerary.getId(), itinerary.getStatus(), saved.getUpdatedAt());
         }).subscribeOn(dbScheduler)
                 .onErrorMap(
                         e -> !(e instanceof ResponseStatusException),
@@ -555,14 +559,14 @@ public class ItineraryServiceImpl implements ItineraryService {
 
             dayPlans.put(request.date(), sorted);
             itinerary.updateDayPlans(objectMapper.writeValueAsString(dayPlans));
-            itineraryRepository.save(itinerary);
+            Itinerary saved = itineraryRepository.save(itinerary);
 
             return new PatchItemStatusResponse(
                     itinerary.getId(),
                     request.date(),
                     request.index(),
                     request.status(),
-                    itinerary.getUpdatedAt()
+                    saved.getUpdatedAt()
             );
         }).subscribeOn(dbScheduler)
                 .onErrorMap(

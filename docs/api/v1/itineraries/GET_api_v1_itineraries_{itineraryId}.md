@@ -52,7 +52,7 @@
       "endDate": "2026-05-04",
       "dayPlans": {
         "2026-05-01": [
-          {"index": 0, "plan_name" : "경복궁 방문" ,"time": "09:00 ~ 12:00", "place": "경복궁", "note": "한복 대여 추천", "status": "done"},
+          {"index": 0, "plan_name": "경복궁 방문", "time": "09:00 ~ 12:00", "place": "경복궁", "note": "한복 대여 추천", "cost": {"amount": 3000, "currency": "KRW", "amount_krw": null}, "status": "done"},
           ...
         ]
       },
@@ -178,12 +178,12 @@
 
 ```json
 {
-	"2026-05-01": [
-     {"time": "09:00 ~ 12:00", "plan_name" : "경복궁 방문", "place": "경복궁", "note": "한복 대여 추천", "status": "done"},
-     {"time": "12:00 ~ 14:30", "plan_name" : "광장시장 방문", "place": "광장시장", "note": "빈대떡, 마약김밥 필수", "status": "todo"},
-     {"time": "14:30 ~ 18:00", "plan_name" : "창덕궁 방문", "place": "창덕궁", "note": "후원 투어 예약 필요", "status": "todo"},
-     {"time": "18:00 ~ 20:00", "plan_name" : "북촌한옥마을 방문", "place": "북촌한옥마을", "note": "저녁 산책 겸 구경", "status": "todo"}
-   ]
+  "2026-05-01": [
+    {"plan_name": "경복궁 방문", "time": "09:00 ~ 12:00", "place": "경복궁", "note": "한복 대여 추천", "cost": {"amount": 3000, "currency": "KRW", "amount_krw": null}, "status": "done"},
+    {"plan_name": "광장시장 방문", "time": "12:00 ~ 14:30", "place": "광장시장", "note": "빈대떡, 마약김밥 필수", "cost": null, "status": "todo"},
+    {"plan_name": "창덕궁 방문", "time": "14:30 ~ 18:00", "place": "창덕궁", "note": "후원 투어 예약 필요", "cost": {"amount": 3000, "currency": "KRW", "amount_krw": null}, "status": "todo"},
+    {"plan_name": "북촌한옥마을 방문", "time": "18:00 ~ 20:00", "place": "북촌한옥마을", "note": "저녁 산책 겸 구경", "cost": null, "status": "todo"}
+  ]
 }
 ```
 
@@ -192,10 +192,14 @@
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `index` | `integer` | - | 응답 시 백엔드에서 부여. DB 저장 안 함. `time` 시작 시각 오름차순 정렬 후 0부터 부여 |
-| `time` | `string` | Y | 일정 시간 범위. `"HH:MM ~ HH:MM"` 형식 (24시간제, 예: `"09:00 ~ 12:00"`). 동일 날짜 내 아이템 간 시간 범위는 겹치지 않아야 함 |
 | `plan_name` | `string` | Y | 일정 이름 |
+| `time` | `string` | Y | 일정 시간 범위. `"HH:MM ~ HH:MM"` 형식 (24시간제, 예: `"09:00 ~ 12:00"`). 동일 날짜 내 아이템 간 시간 범위는 겹치지 않아야 함 |
 | `place` | `string` | Y | 장소명 |
 | `note` | `string` | N | 메모. 없으면 빈 문자열(`""`) |
+| `cost` | `object \| null` | N | 1인 기준 예상 비용. 무료이면 `null` |
+| `cost.amount` | `number` | - | 현지 통화 금액 (소수점 허용) |
+| `cost.currency` | `string` | - | ISO 4217 통화 코드 (예: `"KRW"`, `"JPY"`, `"USD"`) |
+| `cost.amount_krw` | `integer \| null` | - | 한화 환산 금액. `currency`가 `"KRW"`이면 `null` |
 | `status` | `string` | Y | `todo` (미완료) / `done` (완료) |
 
 **참고**
