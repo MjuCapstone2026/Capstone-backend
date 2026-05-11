@@ -157,6 +157,11 @@
 
     - reservation (예약) 일 때:
 
+        > AI 서버는 `reservationId` 없이 `externalRefId`를 전송합니다. Spring Boot가 `reservations` 테이블에 저장하면서 UUID PK(`reservationId`)가 생성되며, done 이벤트에 포함하여 반환합니다.
+        > `detail` 필드 구조는 `type`에 따라 다릅니다.
+
+        **type: "flight" 일 때**
+
         ```
         event: done
         data: {
@@ -176,7 +181,8 @@
             "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
             "type": "flight",
             "status": "confirmed",
-            "bookingUrl": "https://booking.example.com/flight/123",
+            "bookingUrl": "https://booking.tripai.app/flights/KE123",
+            "externalRefId": "KE-20260511-1A2B3C",
             "detail": {
               "airline": "대한항공",
               "flight_no": "KE123",
@@ -187,7 +193,44 @@
             },
             "totalPrice": 320000.00,
             "currency": "KRW",
-            "reservedAt": "2026-05-01T09:00:00+09:00"
+            "reservedAt": "2026-05-11T09:00:00+09:00"
+          }
+        }
+        ```
+
+        **type: "hotel" 일 때**
+
+        ```
+        event: done
+        data: {
+          "userMessage": {
+            "messageId": "msg-041",
+            "role": "user",
+            "content": "호텔 예약해줘",
+            "createdAt": "2026-04-03T22:00:00"
+          },
+          "assistantMessage": {
+            "messageId": "msg-042",
+            "role": "assistant",
+            "content": "예시호텔(신주쿠)을 예약했습니다.",
+            "createdAt": "2026-04-03T22:00:05"
+          },
+          "reservation": {
+            "reservationId": "c3a7db7a-3b93-4b50-a667-4ac922e2ff11",
+            "type": "hotel",
+            "status": "confirmed",
+            "bookingUrl": "https://booking.tripai.app/stays/HTL-20260511-1A2B3C",
+            "externalRefId": "HTL-20260511-1A2B3C",
+            "detail": {
+              "name": "예시호텔(신주쿠)",
+              "check_in": "2026-05-01",
+              "check_out": "2026-05-03",
+              "rooms": 1,
+              "guests": 3
+            },
+            "totalPrice": 240000.00,
+            "currency": "KRW",
+            "reservedAt": "2026-05-11T09:00:00+09:00"
           }
         }
         ```
@@ -276,8 +319,8 @@
     - `itinerary` → chat_messages 저장 + embedding 저장 + itineraries 수정 + itinerary_logs 스냅샷 저장
         - AI 서버는 수정된 날짜만 전송하며, 백엔드에서 기존 `day_plans`에 병합(수정되지 않은 날짜는 그대로 유지)합니다.
         - 저장 전 각 날짜의 아이템 배열을 `time` 오름차순으로 정렬하여 저장합니다.
-    - `reservation` → chat_messages 저장 + embedding 저장 + reservations 저장 + reservation_histories 저장
-    - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 + reservation_histories 저장
+    - `reservation` → chat_messages 저장 + embedding 저장 + reservations 신규 저장 (`externalRefId` 기준, UUID PK 자동 생성, status = `confirmed`)
+    - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 (`reservationId`로 조회 후 status = `cancelled`, cancelledAt 갱신)
     - `change` → 사용자가 일정의 예산, 인원(성인수, 아이수, 아이 나이) 등 기본 정보 수정을 llm으로 요청할 경우
 9. **done 이벤트 전송**: 저장 완료 후 최종 메타데이터를 done 이벤트로 프론트엔드에 전송합니다. `itinerary` 타입의 경우 병합 후 전체 날짜의 `dayPlans`를 반환합니다. 아이템 배열은 `time` 오름차순 정렬 후 `index`(0부터)를 부여하여 반환합니다.
 
