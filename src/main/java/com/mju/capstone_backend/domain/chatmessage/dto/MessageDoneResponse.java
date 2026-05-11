@@ -50,6 +50,7 @@ public record MessageDoneResponse(
             String type,
             String status,
             String bookingUrl,
+            String externalRefId,
             Map<String, Object> detail,
             BigDecimal totalPrice,
             String currency,
