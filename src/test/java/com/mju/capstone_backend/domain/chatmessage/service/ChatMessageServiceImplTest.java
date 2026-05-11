@@ -1,12 +1,19 @@
 package com.mju.capstone_backend.domain.chatmessage.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mju.capstone_backend.domain.chatmessage.dto.ChatStreamEvent;
+import com.mju.capstone_backend.domain.chatmessage.dto.FastApiDonePayload;
 import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.reservation.entity.Reservation;
+import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,11 +23,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +57,9 @@ class ChatMessageServiceImplTest {
     private ItineraryLogRepository itineraryLogRepository;
 
     @Mock
+    private ReservationRepository reservationRepository;
+
+    @Mock
     private FastApiChatClient fastApiChatClient;
 
     @Mock
@@ -67,7 +81,9 @@ class ChatMessageServiceImplTest {
 
         var mapperField = ChatMessageServiceImpl.class.getDeclaredField("objectMapper");
         mapperField.setAccessible(true);
-        mapperField.set(chatMessageService, new ObjectMapper());
+        mapperField.set(chatMessageService, new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS));
     }
 
     // ─── 성공 케이스 ──────────────────────────────────────────────────────────
@@ -267,6 +283,157 @@ class ChatMessageServiceImplTest {
                 .verify();
     }
 
+    // ─── reservation / cancel ────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("sendMessage - reservation 타입: reservations 저장 후 ReservationResult 반환")
+    void sendMessage_reservationType_savesReservationAndReturnsResult() {
+        // given
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID);
+        Itinerary itinerary = mockItinerary(UUID.randomUUID(), ROOM_ID);
+        UUID reservationId = UUID.randomUUID();
+
+        FastApiDonePayload payload = new FastApiDonePayload.Reservation(
+                new FastApiDonePayload.MessagePayload("호텔 예약해줘", null),
+                new FastApiDonePayload.MessagePayload("예시호텔을 예약했습니다.", null),
+                null,
+                new FastApiDonePayload.ReservationData(
+                        "hotel",
+                        "https://booking.tripai.app/stays/HTL-20260511-1A2B3C",
+                        "HTL-20260511-1A2B3C",
+                        Map.of("name", "예시호텔", "check_in", "2026-05-01", "check_out", "2026-05-03"),
+                        new BigDecimal("240000.00"),
+                        "KRW",
+                        OffsetDateTime.parse("2026-05-11T09:00:00+09:00")
+                )
+        );
+
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+                .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
+        when(chatMessageRepository.save(any())).thenAnswer(inv ->
+                mockChatMessageWithId(inv.getArgument(0)));
+        when(itineraryRepository.findByRoomId(ROOM_ID)).thenReturn(Optional.of(itinerary));
+        when(reservationRepository.save(any())).thenAnswer(inv ->
+                mockReservationWithId(inv.getArgument(0), reservationId));
+
+        // when & then
+        StepVerifier.create(
+                chatMessageService.sendMessage(CLERK_ID, ROOM_ID, "호텔 예약해줘")
+                        .filter(sse -> "done".equals(sse.event()))
+        )
+                .assertNext(sse -> {
+                    String json = (String) sse.data();
+                    assertThat(json).contains("reservation");
+                    assertThat(json).contains("HTL-20260511-1A2B3C");
+                    assertThat(json).contains("confirmed");
+                })
+                .verifyComplete();
+
+        verify(reservationRepository).save(any(Reservation.class));
+    }
+
+    @Test
+    @DisplayName("sendMessage - reservation 타입: itinerary 없으면 done 이벤트 오류")
+    void sendMessage_reservationType_itineraryNotFound_returnsError() {
+        // given
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID);
+
+        FastApiDonePayload payload = new FastApiDonePayload.Reservation(
+                new FastApiDonePayload.MessagePayload("항공권 예약해줘", null),
+                new FastApiDonePayload.MessagePayload("예약했습니다.", null),
+                null,
+                new FastApiDonePayload.ReservationData(
+                        "flight", "https://booking.tripai.app/flights/KE123", "KE-001",
+                        Map.of("airline", "대한항공"), new BigDecimal("320000.00"), "KRW",
+                        OffsetDateTime.now()
+                )
+        );
+
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+                .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
+        when(chatMessageRepository.save(any())).thenAnswer(inv ->
+                mockChatMessageWithId(inv.getArgument(0)));
+        when(itineraryRepository.findByRoomId(ROOM_ID)).thenReturn(Optional.empty());
+
+        // when & then
+        StepVerifier.create(chatMessageService.sendMessage(CLERK_ID, ROOM_ID, "항공권 예약해줘"))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("sendMessage - cancel 타입: reservation 상태를 cancelled로 변경하고 CancelResult 반환")
+    void sendMessage_cancelType_updatesReservationStatusAndReturnsCancelResult() {
+        // given
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID);
+        UUID reservationId = UUID.randomUUID();
+        OffsetDateTime cancelledAt = OffsetDateTime.parse("2026-04-10T10:00:00+09:00");
+
+        Reservation reservation = mockReservation(reservationId, UUID.randomUUID(), "confirmed");
+
+        FastApiDonePayload payload = new FastApiDonePayload.Cancel(
+                new FastApiDonePayload.MessagePayload("예약 취소해줘", null),
+                new FastApiDonePayload.MessagePayload("예약을 취소했습니다.", null),
+                null,
+                new FastApiDonePayload.CancelData(reservationId, cancelledAt)
+        );
+
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+                .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
+        when(chatMessageRepository.save(any())).thenAnswer(inv ->
+                mockChatMessageWithId(inv.getArgument(0)));
+        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any())).thenReturn(reservation);
+
+        // when & then
+        StepVerifier.create(
+                chatMessageService.sendMessage(CLERK_ID, ROOM_ID, "예약 취소해줘")
+                        .filter(sse -> "done".equals(sse.event()))
+        )
+                .assertNext(sse -> {
+                    String json = (String) sse.data();
+                    assertThat(json).contains("cancel");
+                    assertThat(json).contains(reservationId.toString());
+                    assertThat(json).contains("cancelled");
+                })
+                .verifyComplete();
+
+        verify(reservationRepository).findById(reservationId);
+        verify(reservationRepository).save(reservation);
+    }
+
+    @Test
+    @DisplayName("sendMessage - cancel 타입: reservation 없으면 done 이벤트 오류")
+    void sendMessage_cancelType_reservationNotFound_returnsError() {
+        // given
+        ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID);
+        UUID reservationId = UUID.randomUUID();
+
+        FastApiDonePayload payload = new FastApiDonePayload.Cancel(
+                new FastApiDonePayload.MessagePayload("예약 취소해줘", null),
+                new FastApiDonePayload.MessagePayload("예약을 취소했습니다.", null),
+                null,
+                new FastApiDonePayload.CancelData(reservationId, OffsetDateTime.now())
+        );
+
+        when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
+        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+                .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
+        when(chatMessageRepository.save(any())).thenAnswer(inv ->
+                mockChatMessageWithId(inv.getArgument(0)));
+        when(reservationRepository.findById(reservationId)).thenReturn(Optional.empty());
+
+        // when & then
+        StepVerifier.create(chatMessageService.sendMessage(CLERK_ID, ROOM_ID, "예약 취소해줘"))
+                .expectErrorMatches(e -> e instanceof ResponseStatusException rse
+                        && rse.getStatusCode() == NOT_FOUND)
+                .verify();
+    }
+
     // ─── 헬퍼 ─────────────────────────────────────────────────────────────────
 
     private ChatRoom mockChatRoom(UUID id, String clerkId) {
@@ -303,5 +470,65 @@ class ChatMessageServiceImplTest {
             throw new RuntimeException(e);
         }
         return msg;
+    }
+
+    private ChatMessage mockChatMessageWithId(ChatMessage msg) {
+        try {
+            var idField = ChatMessage.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(msg, UUID.randomUUID());
+
+            var createdAtField = ChatMessage.class.getDeclaredField("createdAt");
+            createdAtField.setAccessible(true);
+            createdAtField.set(msg, OffsetDateTime.now());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return msg;
+    }
+
+    private Itinerary mockItinerary(UUID id, UUID roomId) {
+        Itinerary itinerary = Itinerary.of(
+                roomId, "도쿄",
+                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                new BigDecimal("500000"), 2, 0, List.of()
+        );
+        try {
+            var idField = Itinerary.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(itinerary, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return itinerary;
+    }
+
+    private Reservation mockReservation(UUID id, UUID itineraryId, String status) {
+        Reservation reservation = Reservation.of(
+                itineraryId, "hotel", status, "ai",
+                "https://booking.tripai.app/stays/HTL-001", "HTL-001",
+                "{\"name\":\"예시호텔\"}",
+                new BigDecimal("240000"), "KRW",
+                OffsetDateTime.parse("2026-05-11T09:00:00+09:00")
+        );
+        try {
+            var idField = Reservation.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(reservation, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return reservation;
+    }
+
+    private Reservation mockReservationWithId(Reservation reservation, UUID id) {
+        try {
+            var idField = Reservation.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(reservation, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return reservation;
     }
 }

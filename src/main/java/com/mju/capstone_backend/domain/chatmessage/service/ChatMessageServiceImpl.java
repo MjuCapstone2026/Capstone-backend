@@ -16,6 +16,8 @@ import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.reservation.entity.Reservation;
+import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -48,6 +50,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatRoomRepository chatRoomRepository;
     private final ItineraryRepository itineraryRepository;
     private final ItineraryLogRepository itineraryLogRepository;
+    private final ReservationRepository reservationRepository;
     private final FastApiChatClient fastApiChatClient;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
@@ -200,15 +203,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             case FastApiDonePayload.Change change ->
                     processChange(chatRoom.getId(), userItem, assistantItem, change);
 
-            case FastApiDonePayload.Reservation ignored -> {
-                log.warn("Reservation type received but not yet implemented, roomId={}", chatRoom.getId());
-                yield new MessageDoneResponse(userItem, assistantItem, null, null, null, null);
-            }
+            case FastApiDonePayload.Reservation reservation ->
+                    processReservation(chatRoom.getId(), userItem, assistantItem, reservation);
 
-            case FastApiDonePayload.Cancel ignored -> {
-                log.warn("Cancel type received but not yet implemented, roomId={}", chatRoom.getId());
-                yield new MessageDoneResponse(userItem, assistantItem, null, null, null, null);
-            }
+            case FastApiDonePayload.Cancel cancel ->
+                    processCancel(chatRoom.getId(), userItem, assistantItem, cancel);
         };
     }
 
@@ -329,6 +328,78 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         itinerary.getChildAges(),
                         savedItinerary.getUpdatedAt()),
                 null, null);
+    }
+
+    private MessageDoneResponse processReservation(UUID roomId,
+                                                   MessageDoneResponse.MessageItem userItem,
+                                                   MessageDoneResponse.MessageItem assistantItem,
+                                                   FastApiDonePayload.Reservation payload) {
+        Itinerary itinerary = itineraryRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Itinerary not found for this chat room."));
+
+        FastApiDonePayload.ReservationData r = payload.reservation();
+
+        String detailJson;
+        try {
+            detailJson = objectMapper.writeValueAsString(r.detail());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to serialize reservation detail.");
+        }
+
+        Reservation saved = reservationRepository.save(
+                Reservation.of(
+                        itinerary.getId(),
+                        r.type(),
+                        "confirmed",
+                        "ai",
+                        r.bookingUrl(),
+                        r.externalRefId(),
+                        detailJson,
+                        r.totalPrice(),
+                        r.currency(),
+                        r.reservedAt()
+                )
+        );
+
+        return new MessageDoneResponse(
+                userItem, assistantItem, null, null,
+                new MessageDoneResponse.ReservationResult(
+                        saved.getId(),
+                        saved.getType(),
+                        saved.getStatus(),
+                        saved.getBookingUrl(),
+                        saved.getExternalRefId(),
+                        r.detail(),
+                        saved.getTotalPrice(),
+                        saved.getCurrency(),
+                        saved.getReservedAt()
+                ),
+                null);
+    }
+
+    private MessageDoneResponse processCancel(UUID roomId,
+                                              MessageDoneResponse.MessageItem userItem,
+                                              MessageDoneResponse.MessageItem assistantItem,
+                                              FastApiDonePayload.Cancel payload) {
+        FastApiDonePayload.CancelData c = payload.cancel();
+
+        Reservation reservation = reservationRepository.findById(c.reservationId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Reservation not found."));
+
+        reservation.update("cancelled", null, null, null, null, c.cancelledAt());
+        reservationRepository.save(reservation);
+
+        return new MessageDoneResponse(
+                userItem, assistantItem, null, null, null,
+                new MessageDoneResponse.CancelResult(
+                        reservation.getId(),
+                        reservation.getStatus(),
+                        reservation.getCancelledAt()
+                )
+        );
     }
 
     private String adjustDayPlans(String currentJson, LocalDate newStart, LocalDate newEnd) {
