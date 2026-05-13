@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
@@ -38,15 +39,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ItineraryServiceImpl implements ItineraryService {
 
-    private static final Pattern TIME_RANGE_PATTERN =
-            Pattern.compile("^\\d{2}:\\d{2} ~ \\d{2}:\\d{2}$");
+    private static final java.util.regex.Pattern TIME_RANGE_PATTERN =
+            java.util.regex.Pattern.compile("^\\d{2}:\\d{2} ~ \\d{2}:\\d{2}$");
 
     private final UserRepository userRepository;
     private final ItineraryRepository itineraryRepository;
@@ -66,14 +66,22 @@ public class ItineraryServiceImpl implements ItineraryService {
             List<GetItinerariesResponse.ItineraryItem> items = itineraryRepository
                     .findSummariesByClerkId(clerkId)
                     .stream()
-                    .map(s -> new GetItinerariesResponse.ItineraryItem(
-                            s.getId(),
-                            s.getName(),
-                            s.getStatus(),
-                            s.getDestination(),
-                            s.getTotalDays(),
-                            s.getStartDate()
-                    ))
+                    .map(s -> {
+                        List<DestinationItem> destinations;
+                        try {
+                            destinations = objectMapper.readValue(s.getDestinations(), new TypeReference<>() {});
+                        } catch (Exception e) {
+                            destinations = List.of();
+                        }
+                        return new GetItinerariesResponse.ItineraryItem(
+                                s.getId(),
+                                s.getName(),
+                                s.getStatus(),
+                                destinations,
+                                s.getTotalDays(),
+                                s.getStartDate()
+                        );
+                    })
                     .toList();
 
             return new GetItinerariesResponse(items);
@@ -106,7 +114,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                     itinerary.getId(),
                     chatRoom.getName(),
                     itinerary.getStatus(),
-                    itinerary.getDestination(),
+                    itinerary.getDestinations(),
                     itinerary.getBudget(),
                     itinerary.getAdultCount(),
                     itinerary.getChildCount(),
@@ -148,7 +156,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                     .stream()
                     .map(log -> new GetItineraryLogsResponse.LogItem(
                             log.getId(),
-                            log.getDestination(),
+                            log.getDestinations(),
                             log.getBudget(),
                             log.getAdultCount(),
                             log.getChildCount(),
@@ -187,13 +195,6 @@ public class ItineraryServiceImpl implements ItineraryService {
                         "You do not have permission to update this itinerary.");
             }
 
-            LocalDate effectiveStart = request.startDate() != null ? request.startDate() : itinerary.getStartDate();
-            LocalDate effectiveEnd = request.endDate() != null ? request.endDate() : itinerary.getEndDate();
-
-            if (effectiveStart.isAfter(effectiveEnd)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "startDate must not be later than endDate.");
-            }
             if (request.adultCount() != null && request.adultCount() < 1) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "adultCount must be at least 1.");
@@ -209,8 +210,12 @@ public class ItineraryServiceImpl implements ItineraryService {
                         "childAges length must match childCount.");
             }
 
-            boolean startDateUnchanged = request.startDate() == null || request.startDate().equals(itinerary.getStartDate());
-            boolean endDateUnchanged = request.endDate() == null || request.endDate().equals(itinerary.getEndDate());
+            if (request.destinations() != null) {
+                validateDestinations(request.destinations());
+            }
+
+            boolean destinationsUnchanged = request.destinations() == null ||
+                    request.destinations().equals(itinerary.getDestinations());
             boolean budgetUnchanged = request.budget() == null ||
                     (itinerary.getBudget() != null && request.budget().compareTo(itinerary.getBudget()) == 0);
             boolean adultCountUnchanged = request.adultCount() == null || request.adultCount() == itinerary.getAdultCount();
@@ -218,10 +223,17 @@ public class ItineraryServiceImpl implements ItineraryService {
                     (request.childCount() == itinerary.getChildCount() &&
                      Objects.equals(request.childAges(), itinerary.getChildAges()));
 
-            if (startDateUnchanged && endDateUnchanged && budgetUnchanged && adultCountUnchanged && childInfoUnchanged) {
+            if (destinationsUnchanged && budgetUnchanged && adultCountUnchanged && childInfoUnchanged) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "No changes detected. The submitted values are identical to the current data.");
             }
+
+            LocalDate effectiveStart = request.destinations() != null
+                    ? request.destinations().get(0).startDate()
+                    : itinerary.getStartDate();
+            LocalDate effectiveEnd = request.destinations() != null
+                    ? request.destinations().get(request.destinations().size() - 1).endDate()
+                    : itinerary.getEndDate();
 
             boolean dateChanged = !effectiveStart.equals(itinerary.getStartDate())
                     || !effectiveEnd.equals(itinerary.getEndDate());
@@ -233,8 +245,7 @@ public class ItineraryServiceImpl implements ItineraryService {
             Itinerary saved = transactionTemplate.execute(status -> {
                 itineraryLogRepository.save(ItineraryLog.of(itinerary));
                 itinerary.updateBasicInfo(
-                        request.startDate(), request.endDate(),
-                        request.budget(),
+                        request.destinations(), request.budget(),
                         request.adultCount(),
                         request.childCount(), request.childAges(),
                         updatedDayPlans);
@@ -243,7 +254,7 @@ public class ItineraryServiceImpl implements ItineraryService {
 
             return new PatchItineraryResponse(
                     itinerary.getId(),
-                    itinerary.getDestination(),
+                    itinerary.getDestinations(),
                     itinerary.getStartDate(),
                     itinerary.getEndDate(),
                     itinerary.getTotalDays(),
@@ -350,6 +361,144 @@ public class ItineraryServiceImpl implements ItineraryService {
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update day plans.")
                 );
     }
+
+    @Override
+    public Mono<PatchStatusResponse> patchStatus(String clerkId, UUID itineraryId, PatchStatusRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this itinerary.");
+            }
+
+            if (!"draft".equals(request.status()) && !"completed".equals(request.status())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "status must be one of: draft, completed.");
+            }
+
+            if (request.status().equals(itinerary.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted status is identical to the current status.");
+            }
+
+            itinerary.updateStatus(request.status());
+            Itinerary saved = itineraryRepository.save(itinerary);
+
+            return new PatchStatusResponse(itinerary.getId(), itinerary.getStatus(), saved.getUpdatedAt());
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update itinerary status.")
+                );
+    }
+
+    @Override
+    public Mono<PatchItemStatusResponse> patchItemStatus(String clerkId, UUID itineraryId, PatchItemStatusRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!userRepository.existsById(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+            }
+
+            Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
+
+            if (!chatRoom.getClerkId().equals(clerkId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have permission to update this itinerary.");
+            }
+
+            if (!"todo".equals(request.status()) && !"done".equals(request.status())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid status value. Must be 'todo' or 'done'.");
+            }
+
+            Map<String, List<Map<String, Object>>> dayPlans =
+                    objectMapper.readValue(itinerary.getDayPlans(), new TypeReference<>() {});
+
+            List<Map<String, Object>> dateItems = dayPlans.get(request.date());
+            if (dateItems == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
+            }
+
+            List<Map<String, Object>> sorted = new ArrayList<>(dateItems);
+            sorted.sort(Comparator.comparing(item ->
+                    LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])));
+
+            if (request.index() < 0 || request.index() >= sorted.size()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
+            }
+
+            Map<String, Object> targetItem = sorted.get(request.index());
+
+            if (request.status().equals(targetItem.get("status"))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No changes detected. The submitted status is identical to the current status.");
+            }
+
+            Map<String, Object> updatedItem = new LinkedHashMap<>(targetItem);
+            updatedItem.put("status", request.status());
+            sorted.set(request.index(), updatedItem);
+
+            dayPlans.put(request.date(), sorted);
+            itinerary.updateDayPlans(objectMapper.writeValueAsString(dayPlans));
+            Itinerary saved = itineraryRepository.save(itinerary);
+
+            return new PatchItemStatusResponse(
+                    itinerary.getId(),
+                    request.date(),
+                    request.index(),
+                    request.status(),
+                    saved.getUpdatedAt()
+            );
+        }).subscribeOn(dbScheduler)
+                .onErrorMap(
+                        e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update item status.")
+                );
+    }
+
+    // ─── destinations 유효성 검사 ──────────────────────────────────────────────
+
+    public static void validateDestinations(List<DestinationItem> destinations) {
+        if (destinations == null || destinations.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "destinations must contain at least one item.");
+        }
+        for (DestinationItem dest : destinations) {
+            if (dest.city() == null || dest.city().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Each destination must have a non-blank city name.");
+            }
+            if (dest.startDate() == null || dest.endDate() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Each destination must have startDate and endDate.");
+            }
+            if (!dest.startDate().isBefore(dest.endDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Each destination's startDate must be before endDate. city=" + dest.city());
+            }
+        }
+        for (int i = 0; i < destinations.size() - 1; i++) {
+            if (!destinations.get(i).endDate().equals(destinations.get(i + 1).startDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Destination dates must be consecutive: destinations[" + i + "].endDate must equal destinations[" + (i + 1) + "].startDate.");
+            }
+        }
+    }
+
+    // ─── 내부 유틸 ─────────────────────────────────────────────────────────────
 
     private void validateDayPlansRequest(Map<String, List<Map<String, Object>>> dayPlans,
                                           LocalDate rangeStart, LocalDate rangeEnd) {
@@ -466,113 +615,6 @@ public class ItineraryServiceImpl implements ItineraryService {
         } catch (Exception e) {
             return new LinkedHashMap<>();
         }
-    }
-
-    @Override
-    public Mono<PatchStatusResponse> patchStatus(String clerkId, UUID itineraryId, PatchStatusRequest request) {
-        return Mono.fromCallable(() -> {
-            if (!userRepository.existsById(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
-            }
-
-            Itinerary itinerary = itineraryRepository.findById(itineraryId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
-
-            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
-
-            if (!chatRoom.getClerkId().equals(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "You do not have permission to update this itinerary.");
-            }
-
-            if (!"draft".equals(request.status()) && !"completed".equals(request.status())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "status must be one of: draft, completed.");
-            }
-
-            if (request.status().equals(itinerary.getStatus())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "No changes detected. The submitted status is identical to the current status.");
-            }
-
-            itinerary.updateStatus(request.status());
-            Itinerary saved = itineraryRepository.save(itinerary);
-
-            return new PatchStatusResponse(itinerary.getId(), itinerary.getStatus(), saved.getUpdatedAt());
-        }).subscribeOn(dbScheduler)
-                .onErrorMap(
-                        e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update itinerary status.")
-                );
-    }
-
-    @Override
-    public Mono<PatchItemStatusResponse> patchItemStatus(String clerkId, UUID itineraryId, PatchItemStatusRequest request) {
-        return Mono.fromCallable(() -> {
-            if (!userRepository.existsById(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
-            }
-
-            Itinerary itinerary = itineraryRepository.findById(itineraryId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
-
-            ChatRoom chatRoom = chatRoomRepository.findById(itinerary.getRoomId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Itinerary not found."));
-
-            if (!chatRoom.getClerkId().equals(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "You do not have permission to update this itinerary.");
-            }
-
-            if (!"todo".equals(request.status()) && !"done".equals(request.status())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Invalid status value. Must be 'todo' or 'done'.");
-            }
-
-            Map<String, List<Map<String, Object>>> dayPlans =
-                    objectMapper.readValue(itinerary.getDayPlans(), new TypeReference<>() {});
-
-            List<Map<String, Object>> dateItems = dayPlans.get(request.date());
-            if (dateItems == null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
-            }
-
-            List<Map<String, Object>> sorted = new ArrayList<>(dateItems);
-            sorted.sort(Comparator.comparing(item ->
-                    LocalTime.parse(((String) item.get("time")).split(" ~ ")[0])));
-
-            if (request.index() < 0 || request.index() >= sorted.size()) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found.");
-            }
-
-            Map<String, Object> targetItem = sorted.get(request.index());
-
-            if (request.status().equals(targetItem.get("status"))) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "No changes detected. The submitted status is identical to the current status.");
-            }
-
-            Map<String, Object> updatedItem = new LinkedHashMap<>(targetItem);
-            updatedItem.put("status", request.status());
-            sorted.set(request.index(), updatedItem);
-
-            dayPlans.put(request.date(), sorted);
-            itinerary.updateDayPlans(objectMapper.writeValueAsString(dayPlans));
-            Itinerary saved = itineraryRepository.save(itinerary);
-
-            return new PatchItemStatusResponse(
-                    itinerary.getId(),
-                    request.date(),
-                    request.index(),
-                    request.status(),
-                    saved.getUpdatedAt()
-            );
-        }).subscribeOn(dbScheduler)
-                .onErrorMap(
-                        e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update item status.")
-                );
     }
 
     private Map<String, Object> parseDayPlansRaw(String dayPlansJson) {

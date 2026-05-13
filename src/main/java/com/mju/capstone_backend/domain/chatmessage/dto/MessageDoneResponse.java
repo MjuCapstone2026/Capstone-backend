@@ -1,6 +1,7 @@
 package com.mju.capstone_backend.domain.chatmessage.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ public record MessageDoneResponse(
 
     public record ItineraryResult(
             UUID itineraryId,
+            List<DestinationItem> destinations,
             LocalDate startDate,
             LocalDate endDate,
             Map<String, List<Map<String, Object>>> dayPlans,
@@ -35,6 +37,7 @@ public record MessageDoneResponse(
 
     public record ChangeResult(
             UUID itineraryId,
+            List<DestinationItem> destinations,
             LocalDate startDate,
             LocalDate endDate,
             Integer totalDays,

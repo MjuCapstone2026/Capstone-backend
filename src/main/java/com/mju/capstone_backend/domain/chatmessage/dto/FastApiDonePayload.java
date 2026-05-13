@@ -7,12 +7,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +95,7 @@ public sealed interface FastApiDonePayload
     ) {}
 
     record ChangeData(
-            LocalDate startDate,
-            LocalDate endDate,
+            List<DestinationItem> destinations,
             BigDecimal budget,
             Integer adultCount,
             Integer childCount,
