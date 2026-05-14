@@ -3,6 +3,7 @@ package com.mju.capstone_backend.domain.itinerary.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.PatchDayPlansRequest;
@@ -298,7 +299,7 @@ class ItineraryServiceImplTest {
                 "{\"2026-05-01\":[],\"2026-05-02\":[],\"2026-05-03\":[],\"2026-05-04\":[]}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, BigDecimal.valueOf(300000), 3, null, null);
+                null, BigDecimal.valueOf(300000), 3, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -326,7 +327,8 @@ class ItineraryServiceImplTest {
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         // 4박5일 → 5박6일 (endDate 하루 연장)
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, LocalDate.of(2026, 5, 5), null, null, null, null);
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 5))),
+                null, null, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -350,7 +352,8 @@ class ItineraryServiceImplTest {
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         // endDate를 5월2일로 축소
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, LocalDate.of(2026, 5, 2), null, null, null, null);
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 2))),
+                null, null, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -372,7 +375,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                LocalDate.of(2026, 5, 10), LocalDate.of(2026, 5, 1),
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 10), LocalDate.of(2026, 5, 1))),
                 null, null, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
@@ -391,7 +394,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, 0, null, null);
+                null, null, 0, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -409,7 +412,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, null, 1, null);
+                null, null, null, 1, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -427,7 +430,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, null, 2, List.of(5));
+                null, null, null, 2, List.of(5));
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -445,9 +448,9 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID,
                 "{\"2026-05-01\":[],\"2026-05-02\":[],\"2026-05-03\":[],\"2026-05-04\":[]}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, CLERK_ID, "서울 여행");
-        // 기존 값: startDate=2026-05-01, endDate=2026-05-04, budget=500000, adultCount=2
+        // 기존 값: destinations=[서울 05-01~05-04], budget=500000, adultCount=2
         PatchItineraryRequest request = new PatchItineraryRequest(
-                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
                 BigDecimal.valueOf(500000), 2, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
@@ -467,7 +470,7 @@ class ItineraryServiceImplTest {
         when(userRepository.existsById(CLERK_ID)).thenReturn(false);
 
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, null, null, null);
+                null, null, null, null, null);
 
         StepVerifier.create(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
@@ -482,7 +485,7 @@ class ItineraryServiceImplTest {
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.empty());
 
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, null, null, null);
+                null, null, null, null, null);
 
         StepVerifier.create(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
                 .expectErrorMatches(e -> e instanceof ResponseStatusException rse
@@ -496,7 +499,7 @@ class ItineraryServiceImplTest {
         Itinerary itinerary = mockItinerary(ITINERARY_ID, ROOM_ID, "{}");
         ChatRoom chatRoom = mockChatRoom(ROOM_ID, "user_otherClerkId", "타인의 일정");
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, null, null, null, null, null);
+                null, null, null, null, null);
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(true);
         when(itineraryRepository.findById(ITINERARY_ID)).thenReturn(Optional.of(itinerary));
@@ -1146,15 +1149,15 @@ class ItineraryServiceImplTest {
             @Override public UUID getId() { return id; }
             @Override public String getName() { return name; }
             @Override public String getStatus() { return status; }
-            @Override public String getDestination() { return destination; }
+            @Override public String getDestinations() { return destination; }
             @Override public int getTotalDays() { return totalDays; }
             @Override public LocalDate getStartDate() { return startDate; }
         };
     }
 
     private Itinerary mockItinerary(UUID id, UUID roomId, String dayPlans) {
-        Itinerary itinerary = Itinerary.of(roomId, "서울",
-                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
+        Itinerary itinerary = Itinerary.of(roomId,
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
                 BigDecimal.valueOf(500000), 2, 1, List.of(5));
         try {
             var idField = Itinerary.class.getDeclaredField("id");
