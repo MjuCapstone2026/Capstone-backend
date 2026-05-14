@@ -1,7 +1,6 @@
 package com.mju.capstone_backend.domain.itinerary.entity;
 
 import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
-import com.mju.capstone_backend.global.converter.DestinationItemListConverter;
 import com.mju.capstone_backend.global.converter.IntegerListConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -31,7 +30,6 @@ public class ItineraryLog {
     private UUID itineraryId;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Convert(converter = DestinationItemListConverter.class)
     @Column(name = "destinations", columnDefinition = "jsonb")
     private List<DestinationItem> destinations;
 
