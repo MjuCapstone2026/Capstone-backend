@@ -195,13 +195,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                     processItinerary(chatRoom.getId(), assistantMsg.getId(), userItem, assistantItem, itinerary);
 
             case FastApiDonePayload.Change change ->
-                    processChange(chatRoom.getId(), userItem, assistantItem, change);
+                    processChange(chatRoom.getId(), assistantMsg.getId(), userItem, assistantItem, change);
 
             case FastApiDonePayload.Reservation reservation ->
-                    processReservation(chatRoom.getId(), userItem, assistantItem, reservation);
+                    processReservation(chatRoom.getId(), assistantMsg.getId(), userItem, assistantItem, reservation);
 
             case FastApiDonePayload.Cancel cancel ->
-                    processCancel(chatRoom.getId(), userItem, assistantItem, cancel);
+                    processCancel(chatRoom.getId(), assistantMsg.getId(), userItem, assistantItem, cancel);
         };
     }
 
@@ -297,6 +297,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     private MessageDoneResponse processChange(UUID roomId,
+                                              UUID assistantMsgId,
                                               MessageDoneResponse.MessageItem userItem,
                                               MessageDoneResponse.MessageItem assistantItem,
                                               FastApiDonePayload.Change payload) {
@@ -334,6 +335,22 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             return itineraryRepository.save(itinerary);
         });
 
+        try {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("itineraryId", itinerary.getId());
+            snapshot.put("destinations", itinerary.getDestinations());
+            snapshot.put("startDate", itinerary.getStartDate());
+            snapshot.put("endDate", itinerary.getEndDate());
+            snapshot.put("totalDays", itinerary.getTotalDays());
+            snapshot.put("budget", itinerary.getBudget());
+            snapshot.put("adultCount", itinerary.getAdultCount());
+            snapshot.put("childCount", itinerary.getChildCount());
+            snapshot.put("childAges", itinerary.getChildAges());
+            chatMessageRepository.updateActionResult(assistantMsgId, objectMapper.writeValueAsString(snapshot));
+        } catch (Exception e) {
+            log.error("Failed to save action_result for assistantMsgId={}: {}", assistantMsgId, e.getMessage());
+        }
+
         return new MessageDoneResponse(
                 userItem, assistantItem, null,
                 new MessageDoneResponse.ChangeResult(
@@ -351,6 +368,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     private MessageDoneResponse processReservation(UUID roomId,
+                                                   UUID assistantMsgId,
                                                    MessageDoneResponse.MessageItem userItem,
                                                    MessageDoneResponse.MessageItem assistantItem,
                                                    FastApiDonePayload.Reservation payload) {
@@ -383,6 +401,22 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 )
         );
 
+        try {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("reservationId", saved.getId());
+            snapshot.put("type", saved.getType());
+            snapshot.put("status", saved.getStatus());
+            snapshot.put("bookingUrl", saved.getBookingUrl());
+            snapshot.put("externalRefId", saved.getExternalRefId());
+            snapshot.put("detail", r.detail());
+            snapshot.put("totalPrice", saved.getTotalPrice());
+            snapshot.put("currency", saved.getCurrency());
+            snapshot.put("reservedAt", saved.getReservedAt());
+            chatMessageRepository.updateActionResult(assistantMsgId, objectMapper.writeValueAsString(snapshot));
+        } catch (Exception e) {
+            log.error("Failed to save action_result for assistantMsgId={}: {}", assistantMsgId, e.getMessage());
+        }
+
         return new MessageDoneResponse(
                 userItem, assistantItem, null, null,
                 new MessageDoneResponse.ReservationResult(
@@ -400,6 +434,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     private MessageDoneResponse processCancel(UUID roomId,
+                                              UUID assistantMsgId,
                                               MessageDoneResponse.MessageItem userItem,
                                               MessageDoneResponse.MessageItem assistantItem,
                                               FastApiDonePayload.Cancel payload) {
@@ -411,6 +446,16 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
         reservation.update("cancelled", null, null, null, null, c.cancelledAt());
         reservationRepository.save(reservation);
+
+        try {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("reservationId", reservation.getId());
+            snapshot.put("status", reservation.getStatus());
+            snapshot.put("cancelledAt", reservation.getCancelledAt());
+            chatMessageRepository.updateActionResult(assistantMsgId, objectMapper.writeValueAsString(snapshot));
+        } catch (Exception e) {
+            log.error("Failed to save action_result for assistantMsgId={}: {}", assistantMsgId, e.getMessage());
+        }
 
         return new MessageDoneResponse(
                 userItem, assistantItem, null, null, null,
