@@ -41,7 +41,7 @@ public class FastApiChatClient {
                 .bodyValue(new FastApiChatRequest(roomId, content, memory))
                 .retrieve()
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
-                .timeout(Duration.ofSeconds(180))
+                .timeout(Duration.ofSeconds(600))
                 .concatMap(event -> {
                     String type = event.event();
                     String data = event.data();
