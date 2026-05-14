@@ -1,5 +1,6 @@
 package com.mju.capstone_backend.domain.itinerary.controller;
 
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItinerariesResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryLogsResponse;
 import com.mju.capstone_backend.domain.itinerary.dto.GetItineraryResponse;
@@ -57,7 +58,9 @@ class ItineraryControllerTest {
     void getItineraries_withValidJwt_returns200() {
         GetItinerariesResponse response = new GetItinerariesResponse(List.of(
                 new GetItinerariesResponse.ItineraryItem(
-                        UUID.randomUUID(), "도쿄 3박 4일 여행", "draft", "도쿄", 4, LocalDate.of(2026, 5, 1)
+                        UUID.randomUUID(), "도쿄 3박 4일 여행", "draft",
+                        List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
+                        4, LocalDate.of(2026, 5, 1)
                 )
         ));
         when(itineraryService.getItineraries(CLERK_ID)).thenReturn(Mono.just(response));
@@ -72,7 +75,7 @@ class ItineraryControllerTest {
                 .expectBody()
                 .jsonPath("$.itineraries").isArray()
                 .jsonPath("$.itineraries[0].status").isEqualTo("draft")
-                .jsonPath("$.itineraries[0].destination").isEqualTo("도쿄");
+                .jsonPath("$.itineraries[0].destinations[0].city").isEqualTo("도쿄");
 
         verify(itineraryService).getItineraries(CLERK_ID);
     }
@@ -93,7 +96,8 @@ class ItineraryControllerTest {
     @DisplayName("일정 상세 조회 - 유효한 JWT로 200 반환")
     void getItinerary_withValidJwt_returns200() {
         GetItineraryResponse response = new GetItineraryResponse(
-                ITINERARY_ID, "서울 3박 4일 여행", "draft", "서울",
+                ITINERARY_ID, "서울 3박 4일 여행", "draft",
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
                 BigDecimal.valueOf(500000), 2, 1, List.of(5),
                 4, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
                 Map.of("2026-05-01", List.of(
@@ -138,13 +142,15 @@ class ItineraryControllerTest {
                 ITINERARY_ID,
                 List.of(
                         new GetItineraryLogsResponse.LogItem(
-                                UUID.randomUUID(), "서울",
+                                UUID.randomUUID(),
+                                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
                                 BigDecimal.valueOf(600000), 2, 1, List.of(5),
                                 4, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
                                 Map.of(), OffsetDateTime.now()
                         ),
                         new GetItineraryLogsResponse.LogItem(
-                                UUID.randomUUID(), "서울",
+                                UUID.randomUUID(),
+                                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4))),
                                 BigDecimal.valueOf(500000), 2, 1, List.of(5),
                                 4, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 4),
                                 Map.of(), OffsetDateTime.now().minusDays(2)
@@ -185,14 +191,15 @@ class ItineraryControllerTest {
     @DisplayName("기본 정보 수정 - 유효한 JWT로 200 반환")
     void patchItinerary_withValidJwt_returns200() {
         PatchItineraryResponse response = new PatchItineraryResponse(
-                ITINERARY_ID, "서울",
+                ITINERARY_ID,
+                List.of(new DestinationItem("서울", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
                 LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
                 3, BigDecimal.valueOf(300000),
                 2, 1, List.of(7),
                 OffsetDateTime.now()
         );
         PatchItineraryRequest request = new PatchItineraryRequest(
-                null, LocalDate.of(2026, 5, 3), BigDecimal.valueOf(300000), null, null, null);
+                null, BigDecimal.valueOf(300000), null, null, null);
 
         when(itineraryService.patchItinerary(CLERK_ID, ITINERARY_ID, request))
                 .thenReturn(Mono.just(response));
@@ -209,7 +216,7 @@ class ItineraryControllerTest {
                 .expectBody()
                 .jsonPath("$.itineraryId").isEqualTo(ITINERARY_ID.toString())
                 .jsonPath("$.totalDays").isEqualTo(3)
-                .jsonPath("$.destination").isEqualTo("서울");
+                .jsonPath("$.destinations[0].city").isEqualTo("서울");
 
         verify(itineraryService).patchItinerary(CLERK_ID, ITINERARY_ID, request);
     }
