@@ -68,9 +68,7 @@ class ChatRoomControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {
-                          "destination": "도쿄",
-                          "startDate": "2026-05-01",
-                          "endDate": "2026-05-03",
+                          "destinations": [{"city": "도쿄", "start_date": "2026-05-01", "end_date": "2026-05-03"}],
                           "adultCount": 2,
                           "childCount": 0,
                           "childAges": []
@@ -94,9 +92,7 @@ class ChatRoomControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {
-                          "destination": "도쿄",
-                          "startDate": "2026-05-01",
-                          "endDate": "2026-05-03",
+                          "destinations": [{"city": "도쿄", "start_date": "2026-05-01", "end_date": "2026-05-03"}],
                           "adultCount": 2,
                           "childCount": 0,
                           "childAges": []
