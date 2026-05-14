@@ -2,6 +2,7 @@ package com.mju.capstone_backend.domain.chatroom.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatroom.dto.CreateChatRoomRequest;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
@@ -87,7 +88,7 @@ class ChatRoomServiceImplTest {
     @DisplayName("채팅방 생성 - 정상 요청 시 ChatRoom과 Itinerary 저장 후 응답 반환")
     void createChatRoom_success() {
         CreateChatRoomRequest request = new CreateChatRoomRequest(
-                "도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
                 BigDecimal.valueOf(500000), 2, 0, List.of()
         );
 
@@ -115,8 +116,8 @@ class ChatRoomServiceImplTest {
     @DisplayName("채팅방 생성 - 존재하지 않는 사용자는 404 반환")
     void createChatRoom_userNotFound_returns404() {
         CreateChatRoomRequest request = new CreateChatRoomRequest(
-                "도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
-                null, 1, 0, null
+                List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
+                null, 1, 0, List.of()
         );
 
         when(userRepository.existsById(CLERK_ID)).thenReturn(false);
@@ -135,7 +136,7 @@ class ChatRoomServiceImplTest {
     @DisplayName("채팅방 생성 - childAges 길이가 childCount와 불일치 시 400 반환")
     void createChatRoom_childAgesMismatch_returns400() {
         CreateChatRoomRequest request = new CreateChatRoomRequest(
-                "도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
                 null, 1, 2, List.of(5)   // childCount=2 이지만 childAges 길이=1
         );
 
@@ -347,8 +348,8 @@ class ChatRoomServiceImplTest {
 
     private Itinerary mockItinerary(UUID id, UUID roomId) {
         Itinerary itinerary = Itinerary.of(
-                roomId, "도쿄",
-                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                roomId,
+                List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
                 null, 1, 0, List.of()
         );
         try {

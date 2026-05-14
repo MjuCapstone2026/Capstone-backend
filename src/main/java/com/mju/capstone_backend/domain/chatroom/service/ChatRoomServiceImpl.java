@@ -12,8 +12,10 @@ import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.itinerary.service.ItineraryServiceImpl;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import com.mju.capstone_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,36 +50,34 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         public Mono<CreateChatRoomResponse> createChatRoom(String clerkId, CreateChatRoomRequest request) {
                 return Mono.fromCallable(() -> {
                         if (!userRepository.existsById(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+                                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
                         }
 
-                        if (request.startDate().isAfter(request.endDate())) {
-                                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                                                "startDate must not be later than endDate.");
-                        }
+                        ItineraryServiceImpl.validateDestinations(request.destinations());
 
                         if (request.childAges().size() != request.childCount()) {
                                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                                 "childAges length must match childCount.");
                         }
 
-                        long totalDays = ChronoUnit.DAYS.between(request.startDate(), request.endDate()) + 1;
-                        String name = (totalDays - 1) + "박 " + totalDays + "일 " + request.destination() + " 여행";
+                        List<DestinationItem> destinations = request.destinations();
+                        long totalDays = ChronoUnit.DAYS.between(
+                                destinations.get(0).startDate(),
+                                destinations.get(destinations.size() - 1).endDate()) + 1;
+                        String name = (totalDays - 1) + "박 " + totalDays + "일 " + destinations.get(0).city() + " 여행";
 
                         return transactionTemplate.execute(status -> {
                                 ChatRoom chatRoom = chatRoomRepository.saveAndFlush(ChatRoom.of(clerkId, name));
                                 Itinerary itinerary = itineraryRepository.save(
                                         Itinerary.of(
                                                 chatRoom.getId(),
-                                                request.destination(),
-                                                request.startDate(),
-                                                request.endDate(),
+                                                destinations,
                                                 request.budget(),
                                                 request.adultCount(),
                                                 request.childCount(),
                                                 request.childAges()
                                         )
-                                        );
+                                );
                                 chatMessageRepository.save(
                                                 ChatMessage.of(chatRoom.getId(), "assistant", INITIAL_AI_MESSAGE));
                                 return new CreateChatRoomResponse(
@@ -86,21 +86,21 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                                                 itinerary.getId(),
                                                 chatRoom.getClerkId(),
                                                 chatRoom.getCreatedAt(),
-                        chatRoom.getUpdatedAt()
-                );
+                                                chatRoom.getUpdatedAt()
+                                );
                         });
                 }).subscribeOn(dbScheduler)
                                 .onErrorMap(
                                                 e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create chat room.")
-                );
+                                                e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create chat room.")
+                                );
         }
 
         @Override
         public Mono<GetChatRoomsResponse> getChatRooms(String clerkId) {
                 return Mono.fromCallable(() -> {
                         if (!userRepository.existsById(clerkId)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
+                                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found. Please sign up first.");
                         }
 
                         List<GetChatRoomsResponse.ChatRoomItem> items = chatRoomRepository
@@ -113,23 +113,23 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                                                         room.getAiSummary(),
                                                         parsePreferences(room.getPreferences()),
                                                         room.getCreatedAt(),
-                            room.getUpdatedAt()
-                    ))
+                                                        room.getUpdatedAt()
+                                        ))
                                         .toList();
 
                         return new GetChatRoomsResponse(items);
                 }).subscribeOn(dbScheduler)
                                 .onErrorMap(
                                                 e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat rooms.")
-                );
+                                                e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat rooms.")
+                                );
         }
 
         @Override
         public Mono<GetChatRoomResponse> getChatRoom(String clerkId, UUID roomId) {
                 return Mono.fromCallable(() -> {
                         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
 
                         if (!chatRoom.getClerkId().equals(clerkId)) {
                                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -148,20 +148,20 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                                         parsePreferences(chatRoom.getPreferences()),
                                         itineraryId,
                                         chatRoom.getCreatedAt(),
-                    chatRoom.getUpdatedAt()
-            );
+                                        chatRoom.getUpdatedAt()
+                        );
                 }).subscribeOn(dbScheduler)
                                 .onErrorMap(
                                                 e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat room.")
-                );
+                                                e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch chat room.")
+                                );
         }
 
         @Override
         public Mono<DeleteChatRoomResponse> deleteChatRoom(String clerkId, UUID roomId) {
                 return Mono.fromCallable(() -> {
                         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
 
                         if (!chatRoom.getClerkId().equals(clerkId)) {
                                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -181,15 +181,15 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 }).subscribeOn(dbScheduler)
                                 .onErrorMap(
                                                 e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete chat room.")
-                );
+                                                e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete chat room.")
+                                );
         }
 
         @Override
         public Mono<UpdateChatRoomNameResponse> updateChatRoomName(String clerkId, UUID roomId, String name) {
                 return Mono.fromCallable(() -> {
                         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
 
                         if (!chatRoom.getClerkId().equals(clerkId)) {
                                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -203,14 +203,14 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 }).subscribeOn(dbScheduler)
                                 .onErrorMap(
                                                 e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update chat room name.")
-                );
+                                                e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update chat room name.")
+                                );
         }
 
         private Map<String, Object> parsePreferences(String preferences) {
-        if (preferences == null) return null;
+                if (preferences == null) return null;
                 try {
-            return objectMapper.readValue(preferences, new TypeReference<>() {});
+                        return objectMapper.readValue(preferences, new TypeReference<>() {});
                 } catch (Exception e) {
                         return null;
                 }

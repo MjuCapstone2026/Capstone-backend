@@ -15,12 +15,12 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
     Optional<Itinerary> findByRoomId(UUID roomId);
 
     @Query(value = """
-            SELECT i.id           AS id,
-                   c.name         AS name,
-                   i.status       AS status,
-                   i.destination  AS destination,
-                   i.total_days   AS totalDays,
-                   i.start_date   AS startDate
+            SELECT i.id              AS id,
+                   c.name            AS name,
+                   i.status          AS status,
+                   i.destinations::text AS destinations,
+                   i.total_days      AS totalDays,
+                   i.start_date      AS startDate
             FROM itineraries i
             JOIN chat_rooms c ON i.room_id = c.id
             WHERE c.clerk_id = :clerkId
@@ -33,7 +33,7 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
         UUID getId();
         String getName();
         String getStatus();
-        String getDestination();
+        String getDestinations();
         int getTotalDays();
         LocalDate getStartDate();
     }

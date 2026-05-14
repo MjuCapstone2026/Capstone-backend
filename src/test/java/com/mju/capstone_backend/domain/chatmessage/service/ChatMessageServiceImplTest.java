@@ -9,6 +9,7 @@ import com.mju.capstone_backend.domain.chatmessage.entity.ChatMessage;
 import com.mju.capstone_backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mju.capstone_backend.domain.chatroom.entity.ChatRoom;
 import com.mju.capstone_backend.domain.chatroom.repository.ChatRoomRepository;
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
@@ -309,7 +310,7 @@ class ChatMessageServiceImplTest {
         );
 
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
-        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+        when(fastApiChatClient.stream(eq(ROOM_ID), any()))
                 .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
         when(chatMessageRepository.save(any())).thenAnswer(inv ->
                 mockChatMessageWithId(inv.getArgument(0)));
@@ -351,7 +352,7 @@ class ChatMessageServiceImplTest {
         );
 
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
-        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+        when(fastApiChatClient.stream(eq(ROOM_ID), any()))
                 .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
         when(chatMessageRepository.save(any())).thenAnswer(inv ->
                 mockChatMessageWithId(inv.getArgument(0)));
@@ -382,7 +383,7 @@ class ChatMessageServiceImplTest {
         );
 
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
-        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+        when(fastApiChatClient.stream(eq(ROOM_ID), any()))
                 .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
         when(chatMessageRepository.save(any())).thenAnswer(inv ->
                 mockChatMessageWithId(inv.getArgument(0)));
@@ -421,7 +422,7 @@ class ChatMessageServiceImplTest {
         );
 
         when(chatRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(chatRoom));
-        when(fastApiChatClient.stream(eq(ROOM_ID), any(), any()))
+        when(fastApiChatClient.stream(eq(ROOM_ID), any()))
                 .thenReturn(Flux.just(new ChatStreamEvent.Done(payload)));
         when(chatMessageRepository.save(any())).thenAnswer(inv ->
                 mockChatMessageWithId(inv.getArgument(0)));
@@ -489,8 +490,7 @@ class ChatMessageServiceImplTest {
 
     private Itinerary mockItinerary(UUID id, UUID roomId) {
         Itinerary itinerary = Itinerary.of(
-                roomId, "도쿄",
-                LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3),
+                roomId, List.of(new DestinationItem("도쿄", LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3))),
                 new BigDecimal("500000"), 2, 0, List.of()
         );
         try {

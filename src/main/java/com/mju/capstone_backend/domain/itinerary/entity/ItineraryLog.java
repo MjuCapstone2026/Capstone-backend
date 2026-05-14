@@ -1,5 +1,6 @@
 package com.mju.capstone_backend.domain.itinerary.entity;
 
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.global.converter.IntegerListConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -28,8 +29,9 @@ public class ItineraryLog {
     @Column(name = "itinerary_id", nullable = false)
     private UUID itineraryId;
 
-    @Column(name = "destination")
-    private String destination;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "destinations", columnDefinition = "jsonb")
+    private List<DestinationItem> destinations;
 
     @Column(name = "budget", precision = 12, scale = 2)
     private BigDecimal budget;
@@ -64,7 +66,7 @@ public class ItineraryLog {
     public static ItineraryLog of(Itinerary itinerary) {
         ItineraryLog log = new ItineraryLog();
         log.itineraryId = itinerary.getId();
-        log.destination = itinerary.getDestination();
+        log.destinations = itinerary.getDestinations();
         log.budget = itinerary.getBudget();
         log.adultCount = itinerary.getAdultCount();
         log.childCount = itinerary.getChildCount();

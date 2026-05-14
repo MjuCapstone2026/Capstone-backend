@@ -23,4 +23,10 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     @Query(value = "UPDATE chat_messages SET embedding = CAST(:embedding AS vector) WHERE id = :id",
             nativeQuery = true)
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE chat_messages SET action_result = CAST(:actionResult AS jsonb) WHERE id = :id",
+            nativeQuery = true)
+    void updateActionResult(@Param("id") UUID id, @Param("actionResult") String actionResult);
 }

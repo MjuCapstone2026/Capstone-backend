@@ -1,5 +1,6 @@
 package com.mju.capstone_backend.domain.itinerary.entity;
 
+import com.mju.capstone_backend.domain.itinerary.dto.DestinationItem;
 import com.mju.capstone_backend.global.converter.IntegerListConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -29,8 +30,9 @@ public class Itinerary {
     @Column(name = "room_id", nullable = false)
     private UUID roomId;
 
-    @Column(name = "destination", nullable = false)
-    private String destination;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "destinations", columnDefinition = "jsonb", nullable = false)
+    private List<DestinationItem> destinations;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -87,13 +89,13 @@ public class Itinerary {
         return json.toString();
     }
 
-    public void updateBasicInfo(LocalDate startDate, LocalDate endDate,
-                                BigDecimal budget, Integer adultCount,
-                                Integer childCount, List<Integer> childAges,
+    public void updateBasicInfo(List<DestinationItem> destinations, BigDecimal budget,
+                                Integer adultCount, Integer childCount, List<Integer> childAges,
                                 String updatedDayPlans) {
-        if (startDate != null) this.startDate = startDate;
-        if (endDate != null) this.endDate = endDate;
-        if (startDate != null || endDate != null) {
+        if (destinations != null) {
+            this.destinations = destinations;
+            this.startDate = destinations.get(0).startDate();
+            this.endDate = destinations.get(destinations.size() - 1).endDate();
             this.totalDays = (int) ChronoUnit.DAYS.between(this.startDate, this.endDate) + 1;
         }
         if (budget != null) this.budget = budget;
@@ -113,20 +115,20 @@ public class Itinerary {
         this.status = status;
     }
 
-    public static Itinerary of(UUID roomId, String destination, LocalDate startDate, LocalDate endDate,
+    public static Itinerary of(UUID roomId, List<DestinationItem> destinations,
                                BigDecimal budget, int adultCount, int childCount, List<Integer> childAges) {
         Itinerary itinerary = new Itinerary();
         itinerary.roomId = roomId;
-        itinerary.destination = destination;
-        itinerary.startDate = startDate;
-        itinerary.endDate = endDate;
-        itinerary.totalDays = (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        itinerary.destinations = destinations;
+        itinerary.startDate = destinations.get(0).startDate();
+        itinerary.endDate = destinations.get(destinations.size() - 1).endDate();
+        itinerary.totalDays = (int) ChronoUnit.DAYS.between(itinerary.startDate, itinerary.endDate) + 1;
         itinerary.budget = budget;
         itinerary.adultCount = adultCount;
         itinerary.childCount = childCount;
         itinerary.childAges = childAges;
         itinerary.status = "draft";
-        itinerary.dayPlans = buildInitialDayPlans(startDate, endDate);
+        itinerary.dayPlans = buildInitialDayPlans(itinerary.startDate, itinerary.endDate);
         return itinerary;
     }
 }

@@ -211,7 +211,7 @@
    - 동일 날짜 내 아이템들의 시간 범위가 겹치지 않는지 확인합니다.
 7. **Status 결정**: 각 아이템의 `status`를 요청과 무관하게 서버에서 결정합니다. 기존 `day_plans`에서 동일 날짜·동일 `time`의 아이템이 있으면 해당 `status`를 이어받고, 없는 신규 아이템은 `"todo"`로 초기화합니다.
 8. **No Change Check**: 요청에 포함된 모든 날짜의 아이템 배열이 기존 값과 동일하면 400을 반환합니다. `status`는 7단계에서 결정된 값 기준으로 비교하며, `note` 누락은 빈 문자열(`""`)과 동일하게 취급하고 `cost` 누락은 `null`과 동일하게 취급합니다. 각 배열은 `time` 오름차순 정렬 후 비교합니다.
-9. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
+9. **Snapshot**: 수정 전 `destinations`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
 10. **Update**: 기존 `day_plans`에서 요청에 포함된 날짜 키의 배열만 덮어씌웁니다. 각 날짜의 아이템 배열은 `time` 시작 시각 오름차순으로 정렬한 후 저장합니다. `updated_at`을 갱신합니다.
 11. **Response**: 갱신된 전체 `day_plans`를 반환합니다. `index`는 포함하지 않습니다.
 

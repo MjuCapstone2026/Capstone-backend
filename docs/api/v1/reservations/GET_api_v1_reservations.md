@@ -31,7 +31,7 @@
 | --- | --- | --- | --- | --- |
 | type | N | String | `flight` | 예약 유형 필터 |
 | status | N | String | `confirmed` | 예약 상태 필터 |
-- `type` 허용 값: `flight`, `accommodation`, `car_rental`
+- `type` 허용 값: `flight`, `accommodation`
 - `status` 허용 값: `confirmed`, `changed`, `cancelled`
 
 ### **2.3 Body**
@@ -49,33 +49,6 @@
   ```json
   {
     "reservations": [
-      {
-        "reservationId": "7d1a1213-f8c8-473e-ae19-3f17cb2ae8e5",
-        "itineraryId": "db2ed15e-bdcb-4b08-8f61-9db4868751e5",
-        "type": "car_rental",
-        "status": "confirmed",
-        "bookedBy": "ai",
-        "bookingUrl": null,
-        "externalRefId": "HERTZ-20260501",
-        "detail": {
-          "pickup": {
-            "datetime": "2026-05-01T13:00:00",
-            "location": "NRT T1"
-          },
-          "company": "Hertz",
-          "dropoff": {
-            "datetime": "2026-05-03T11:00:00",
-            "location": "NRT T1"
-          },
-          "car_model": "Toyota Camry"
-        },
-        "totalPrice": 95000,
-        "currency": "KRW",
-        "reservedAt": "2026-05-04T11:42:01.574526Z",
-        "cancelledAt": null,
-        "createdAt": "2026-05-04T11:42:01.358771Z",
-        "updatedAt": "2026-05-04T11:42:01.719527Z"
-      },
       {
         "reservationId": "0d765dae-4edd-4f80-b472-fc0714b31fc2",
         "itineraryId": "db2ed15e-bdcb-4b08-8f61-9db4868751e5",
@@ -176,7 +149,7 @@
   {
     "status": 400,
     "error": "Bad Request",
-    "message": "type must be one of: flight, accommodation, car_rental."
+    "message": "type must be one of: flight, accommodation."
   }
   ```
 
@@ -221,7 +194,7 @@
 | --- | --- | --- |
 | `id` | UUID | 예약 고유 ID |
 | `itinerary_id` | UUID | 연결된 일정 ID |
-| `type` | VARCHAR(20) | 예약 유형 (`flight`, `accommodation`, `car_rental`) |
+| `type` | VARCHAR(20) | 예약 유형 (`flight`, `accommodation`) |
 | `status` | VARCHAR(20) | 예약 상태 (`confirmed`, `changed`, `cancelled`) |
 | `booked_by` | VARCHAR(10) | 예약 주체 (`user`, `ai`) |
 | `booking_url` | TEXT | 예약 링크 |

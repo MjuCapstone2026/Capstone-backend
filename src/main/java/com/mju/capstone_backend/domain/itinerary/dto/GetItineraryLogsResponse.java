@@ -13,7 +13,7 @@ public record GetItineraryLogsResponse(
 ) {
     public record LogItem(
             UUID logId,
-            String destination,
+            List<DestinationItem> destinations,
             BigDecimal budget,
             Integer adultCount,
             Integer childCount,

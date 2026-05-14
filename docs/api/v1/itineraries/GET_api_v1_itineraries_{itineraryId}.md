@@ -42,7 +42,7 @@
       "itineraryId": "aaa-111",
       "name": "서울 3박 4일 여행",
       "status": "draft",
-      "destination": "서울",
+      "destinations": [{"city": "서울", "start_date": "2026-05-01", "end_date": "2026-05-04"}],
       "budget": 500000.00,
       "adultCount": 2,
       "childCount": 1,
@@ -69,7 +69,7 @@
 | `itineraryId` | UUID | 일정 고유 ID (`itineraries.id`) |
 | `name` | String | 채팅방 이름 (`chat_rooms.name`) |
 | `status` | String | 일정 상태 (`draft` / `completed`) |
-| `destination` | String | 목적지 |
+| `destinations` | Array | 여행지 목록 (`[{"city": "...", "start_date": "...", "end_date": "..."}]`) |
 | `budget` | Number \| null | 예산. 미설정 시 `null` |
 | `adultCount` | Integer | 어른 수 |
 | `childCount` | Integer | 아이 수 |
@@ -153,7 +153,7 @@
 | --- | --- | --- |
 | `id` | UUID | 일정 고유 ID |
 | `status` | VARCHAR(20) | 일정 상태 (`draft` / `completed`) |
-| `destination` | VARCHAR(255) | 목적지 |
+| `destinations` | JSONB | 여행지 목록 (`DestinationItem` 배열) |
 | `budget` | DECIMAL(12,2) | 예산 |
 | `adult_count` | INT | 어른 수 |
 | `child_count` | INT | 아이 수 |

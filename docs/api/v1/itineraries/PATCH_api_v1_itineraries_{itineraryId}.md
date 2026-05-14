@@ -31,12 +31,11 @@
 
 모든 필드는 선택입니다. 변경이 필요한 필드만 포함합니다.
 
-> `destination`은 수정 불가 필드입니다. 요청 body에 포함되더라도 무시합니다. 여행지를 변경하려면 새 채팅방에서 일정을 생성해야 합니다.
-
 ```json
 {
-  "startDate": "2026-05-01",
-  "endDate": "2026-05-03",
+  "destinations": [
+    {"city": "제주도", "start_date": "2026-05-01", "end_date": "2026-05-03"}
+  ],
   "budget": 300000,
   "adultCount": 2,
   "childCount": 1,
@@ -46,8 +45,10 @@
 
 | Field | Required | Type | Description |
 | --- | --- | --- | --- |
-| `startDate` | N | DATE | 변경할 여행 시작일 |
-| `endDate` | N | DATE | 변경할 여행 종료일 |
+| `destinations` | N | Array | 변경할 여행지 목록. 전달 시 기존 목록 전체를 교체. 날짜 연속성 규칙을 따라야 함 |
+| `destinations[].city` | N | String | 여행지 이름 |
+| `destinations[].start_date` | N | DATE | 해당 여행지 방문 시작일 |
+| `destinations[].end_date` | N | DATE | 해당 여행지 방문 종료일. `start_date`보다 이후여야 함 |
 | `budget` | N | Decimal | 변경할 예산 |
 | `adultCount` | N | Int | 변경할 성인 수 (최솟값: 1) |
 | `childCount` | N | Int | 변경할 아이 수 (최솟값: 0). `childAges`와 항상 함께 전달해야 함 |
@@ -64,7 +65,7 @@
     ```json
     {
       "itineraryId": "aaa-111",
-      "destination": "제주도",
+      "destinations": [{"city": "제주도", "start_date": "2026-05-01", "end_date": "2026-05-03"}],
       "startDate": "2026-05-01",
       "endDate": "2026-05-03",
       "totalDays": 3,
@@ -81,8 +82,8 @@
 | Field | Type | Description |
 | --- | --- | --- |
 | `itineraryId` | UUID | 일정 고유 ID |
-| `destination` | String | 목적지 (수정 불가, 기존값 그대로 반환) |
-| `startDate` | String (YYYY-MM-DD) | 여행 시작일 |
+| `destinations` | Array | 변경 후 여행지 목록 |
+| `startDate` | String (YYYY-MM-DD) | 여행 시작일 (`destinations[0].start_date`) |
 | `endDate` | String (YYYY-MM-DD) | 여행 종료일 |
 | `totalDays` | Integer | 총 여행 일수 (`endDate - startDate + 1`) |
 | `budget` | Number \| null | 예산. 미설정 시 `null` |
@@ -122,12 +123,39 @@
 
 #### **3.4 잘못된 요청 (400 Bad Request)**
 
-**`startDate`가 `endDate`보다 늦음** (요청값 또는 기존값과 비교)
+**`destinations` 항목의 `city`가 비어 있음**
 ```json
 {
   "status": 400,
   "error": "Bad Request",
-  "message": "startDate must not be later than endDate."
+  "message": "Each destination must have a non-blank city name."
+}
+```
+
+**`destinations` 항목의 `startDate` 또는 `endDate`가 null**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Each destination must have startDate and endDate."
+}
+```
+
+**`destinations` 항목의 `startDate`가 `endDate` 이후이거나 같음**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Each destination's startDate must be before endDate. city=제주도"
+}
+```
+
+**`destinations` 항목 간 날짜가 연속적이지 않음**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Destination dates must be consecutive: destinations[0].endDate must equal destinations[1].startDate."
 }
 ```
 
@@ -204,15 +232,15 @@
 3. **User Check**: `users` 테이블에서 해당 `clerk_id`가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
 4. **Resource Check**: `itineraryId`로 itineraries 테이블을 조회합니다. 존재하지 않으면 404를 반환합니다.
 5. **Authorization Check**: `room_id → chat_rooms.clerk_id`가 요청자의 `clerk_id`와 일치하는지 확인합니다. 일치하지 않으면 403을 반환합니다.
-6. **Validation**: 아래 항목을 검증합니다. 위반 시 400을 반환합니다.
-   - `startDate` / `endDate` 중 하나만 요청에 포함된 경우, 나머지는 DB의 기존값으로 대체하여 비교합니다. 유효한 `startDate`가 유효한 `endDate`보다 늦으면 400을 반환합니다.
+6. **Validation**: 아래 순서로 검증합니다. 위반 시 400을 반환합니다.
    - `adultCount`가 1 미만이면 400을 반환합니다.
    - `childCount`와 `childAges` 중 하나만 요청에 포함된 경우 400을 반환합니다. `childAges`의 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
+   - `destinations`가 포함된 경우: 각 항목의 `city`가 비어 있거나, `startDate`/`endDate`가 null이거나, `startDate`가 `endDate` 이후이거나 같으면 400을 반환합니다. 여러 목적지인 경우 날짜 연속성을 검증합니다.
 7. **No Change Check**: 요청에 포함된 모든 필드가 기존 값과 동일하면 400을 반환합니다. `null` 필드는 "변경 없음"으로 취급합니다.
-8. **Snapshot**: 수정 전 `destination`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
+8. **Snapshot**: 수정 전 `destinations`, `budget`, `adult_count`, `child_count`, `child_ages`, `total_days`, `start_date`, `end_date`, `day_plans` 값을 `itinerary_logs` 테이블에 저장합니다.
 9. **Update**: 요청에 포함된 필드만 `itineraries`에 업데이트하고 `updated_at`을 갱신합니다.
-   - `startDate` / `endDate` 중 하나라도 변경된 경우 유효한 두 날짜로 `total_days`를 재계산합니다 (`endDate - startDate + 1`).
-   - 날짜 범위가 **넓어진** 경우: 새로 추가된 날짜를 빈 배열(`[]`)로 `day_plans`에 추가합니다. (예: `"2026-05-04": []`)
+   - `destinations`가 변경된 경우 `start_date`(`destinations[0].start_date`), `end_date`(`destinations[마지막].end_date`), `total_days`(`end_date - start_date + 1`)를 재계산합니다.
+   - 날짜 범위가 **넓어진** 경우: 새로 추가된 날짜를 빈 배열(`[]`)로 `day_plans`에 추가합니다.
    - 날짜 범위가 **좁아진** 경우: 범위 밖으로 잘린 날짜의 `day_plans` 항목을 삭제합니다.
 10. **Response**: 갱신된 일정 기본 정보를 반환합니다.
 
@@ -220,9 +248,10 @@
 
 | Column | Type | Description |
 | --- | --- | --- |
-| `start_date` | DATE | 요청에 포함된 경우 업데이트 |
-| `end_date` | DATE | 요청에 포함된 경우 업데이트 |
-| `total_days` | INT | `startDate` / `endDate` 중 하나라도 변경된 경우 재계산 (`endDate - startDate + 1`, 편측 요청 시 나머지는 기존값 사용) |
+| `destinations` | JSONB | `destinations` 요청 시 전체 교체 |
+| `start_date` | DATE | `destinations` 변경 시 `destinations[0].start_date`로 재계산 |
+| `end_date` | DATE | `destinations` 변경 시 `destinations[마지막].end_date`로 재계산 |
+| `total_days` | INT | `destinations` 변경 시 `end_date - start_date + 1`로 재계산 |
 | `budget` | DECIMAL(12,2) | 요청에 포함된 경우 업데이트 |
 | `adult_count` | INT | 요청에 포함된 경우 업데이트 |
 | `child_count` | INT | 요청에 포함된 경우 업데이트 |
@@ -239,8 +268,7 @@ curl -X PATCH https://your-api-domain.com/api/v1/itineraries/{itineraryId} \
   -H "Authorization: Bearer <clerk_jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "startDate": "2026-05-01",
-    "endDate": "2026-05-03",
+    "destinations": [{"city": "제주도", "start_date": "2026-05-01", "end_date": "2026-05-03"}],
     "budget": 300000,
     "adultCount": 2,
     "childCount": 1,

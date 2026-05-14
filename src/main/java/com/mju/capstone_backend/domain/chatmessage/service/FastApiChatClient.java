@@ -34,14 +34,14 @@ public class FastApiChatClient {
     @Value("${ai.internal-token:}")
     private String internalToken;
 
-    public Flux<ChatStreamEvent> stream(UUID roomId, String content, FastApiChatRequest.MemoryPayload memory) {
+    public Flux<ChatStreamEvent> stream(UUID roomId, String content) {
         return aiWebClient.post()
                 .uri("/api/v1/ai-messages")
                 .header("X-Internal-Token", internalToken)
-                .bodyValue(new FastApiChatRequest(roomId, content, memory))
+                .bodyValue(new FastApiChatRequest(roomId, content))
                 .retrieve()
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
-                .timeout(Duration.ofSeconds(180))
+                .timeout(Duration.ofSeconds(600))
                 .concatMap(event -> {
                     String type = event.event();
                     String data = event.data();

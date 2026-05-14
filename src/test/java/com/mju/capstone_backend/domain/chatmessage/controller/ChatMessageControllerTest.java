@@ -51,7 +51,7 @@ class ChatMessageControllerTest {
         OffsetDateTime now = OffsetDateTime.now();
         GetChatRoomMessagesResponse response = new GetChatRoomMessagesResponse(
                 ROOM_ID,
-                List.of(new GetChatRoomMessagesResponse.MessageItem(msgId, "user", "안녕하세요", now)),
+                List.of(new GetChatRoomMessagesResponse.MessageItem(msgId, "user", "안녕하세요", null, now)),
                 null,
                 false
         );

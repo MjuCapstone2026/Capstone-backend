@@ -49,7 +49,7 @@
 | Field | Required | Type | Description |
 | --- | --- | --- | --- |
 | `itineraryId` | Y | UUID | 연결된 일정 ID |
-| `type` | Y | String | `flight` | `accommodation` | `car_rental` |
+| `type` | Y | String | `flight` \| `accommodation` |
 | `bookedBy` | Y | String | `user` | `ai` |
 | `bookingUrl` | N | String | 예약 링크 |
 | `externalRefId` | N | String | 외부 예약 번호 |
@@ -112,7 +112,7 @@
     
     | 케이스 | message |
     | --- | --- |
-    | `type` 허용값 위반 | `type must be one of: flight, accommodation, car_rental.` |
+    | `type` 허용값 위반 | `type must be one of: flight, accommodation.` |
     | `bookedBy` 허용값 위반 | `bookedBy must be one of: user, ai.` |
     | `detail` 필수 키 누락 또는 빈 값 | `detail.{field} is required for type '{type}'.` |
     | `detail.{parent}` 객체 아님 | `detail.{parent} must be an object for type '{type}'.` |
@@ -124,7 +124,7 @@
     {
     	"status": 400,
     	"error": "Bad Request",
-    	"message": "type must be one of: flight, accommodation, car_rental."
+    	"message": "type must be one of: flight, accommodation."
     }
     ```
     
@@ -227,17 +227,6 @@
 | `check_in` | String | 체크인 날짜 |
 | `check_out` | String | 체크아웃 날짜 |
 | `guests` | Number | 투숙 인원 |
-
-**car_rental**
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `company` | String | 렌터카 업체명 |
-| `car_model` | String | 차량 모델 |
-| `pickup.location` | String | 픽업 장소 |
-| `pickup.datetime` | String | 픽업 일시 |
-| `dropoff.location` | String | 반납 장소 |
-| `dropoff.datetime` | String | 반납 일시 |
 
 ### **4.3 DB 저장 구조 (reservations Table)**
 

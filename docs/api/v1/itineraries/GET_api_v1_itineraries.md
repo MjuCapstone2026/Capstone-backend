@@ -38,7 +38,7 @@
       "itineraryId": "aaa-111",
       "name": "서울 당일치기",
       "status": "draft",
-      "destination": "서울",
+      "destinations": [{"city": "서울", "start_date": "2026-04-15", "end_date": "2026-04-15"}],
       "totalDays": 1,
       "startDate": "2026-04-15"
     },
@@ -46,7 +46,7 @@
       "itineraryId": "bbb-222",
       "name": "제주도 3박 4일",
       "status": "draft",
-      "destination": "제주",
+      "destinations": [{"city": "제주", "start_date": "2026-05-10", "end_date": "2026-05-13"}],
       "totalDays": 4,
       "startDate": "2026-05-10"
     },
@@ -54,7 +54,7 @@
       "itineraryId": "ccc-333",
       "name": "부산 2박 3일",
       "status": "completed",
-      "destination": "부산",
+      "destinations": [{"city": "부산", "start_date": "2026-03-20", "end_date": "2026-03-22"}],
       "totalDays": 3,
       "startDate": "2026-03-20"
     }
@@ -69,7 +69,7 @@
 | `itineraryId` | UUID | 일정 고유 ID (`itineraries.id`) |
 | `name` | String | 채팅방 이름 (`chat_rooms.name`) |
 | `status` | String | 일정 상태 (`draft` / `completed`) |
-| `destination` | String | 목적지 |
+| `destinations` | Array | 여행지 목록 (`[{"city": "...", "start_date": "...", "end_date": "..."}]`) |
 | `totalDays` | Integer | 총 여행 일수 |
 | `startDate` | String (YYYY-MM-DD) | 여행 시작일 |
 
@@ -119,7 +119,7 @@
 | `id` | UUID | 일정 고유 ID |
 | `room_id` | UUID | 연결된 채팅방 ID (chat_rooms 조인 키) |
 | `status` | VARCHAR(20) | 일정 상태 (`draft` / `completed`) |
-| `destination` | VARCHAR(255) | 목적지 |
+| `destinations` | JSONB | 여행지 목록 (직렬화된 `DestinationItem` 배열) |
 | `total_days` | INT | 총 여행 일수 |
 | `start_date` | DATE | 여행 시작일 |
 
