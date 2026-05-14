@@ -18,7 +18,7 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
             SELECT i.id              AS id,
                    c.name            AS name,
                    i.status          AS status,
-                   i.destinations    AS destinations,
+                   i.destinations::text AS destinations,
                    i.total_days      AS totalDays,
                    i.start_date      AS startDate
             FROM itineraries i
