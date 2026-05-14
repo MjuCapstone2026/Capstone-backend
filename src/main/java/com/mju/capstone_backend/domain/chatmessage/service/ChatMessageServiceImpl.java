@@ -3,7 +3,6 @@ package com.mju.capstone_backend.domain.chatmessage.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mju.capstone_backend.domain.chatmessage.dto.ChatStreamEvent;
-import com.mju.capstone_backend.domain.chatmessage.dto.FastApiChatRequest;
 import com.mju.capstone_backend.domain.chatmessage.dto.FastApiDonePayload;
 import com.mju.capstone_backend.domain.chatmessage.dto.GetChatRoomMessagesResponse;
 import com.mju.capstone_backend.domain.chatmessage.dto.MessageChunkResponse;
@@ -17,6 +16,7 @@ import com.mju.capstone_backend.domain.itinerary.entity.Itinerary;
 import com.mju.capstone_backend.domain.itinerary.entity.ItineraryLog;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryLogRepository;
 import com.mju.capstone_backend.domain.itinerary.repository.ItineraryRepository;
+import com.mju.capstone_backend.domain.itinerary.service.ItineraryServiceImpl;
 import com.mju.capstone_backend.domain.reservation.entity.Reservation;
 import com.mju.capstone_backend.domain.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -121,9 +121,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             return chatRoom;
         }).subscribeOn(dbScheduler)
         .flatMapMany(chatRoom -> {
-            FastApiChatRequest.MemoryPayload memoryPayload = buildMemoryPayload(chatRoom);
-
-            return fastApiChatClient.stream(roomId, content, memoryPayload)
+            return fastApiChatClient.stream(roomId, content)
                     .concatMap(event -> switch (event) {
                         case ChatStreamEvent.Chunk chunk -> Mono.<ServerSentEvent<Object>>just(
                                 ServerSentEvent.<Object>builder()
@@ -154,21 +152,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                                     "Failed to process AI response.")
                     );
         });
-    }
-
-    private FastApiChatRequest.MemoryPayload buildMemoryPayload(ChatRoom chatRoom) {
-        if (chatRoom.getAiSummary() == null && chatRoom.getPreferences() == null) {
-            return null;
-        }
-        try {
-            Map<String, Object> prefsMap = chatRoom.getPreferences() != null
-                    ? objectMapper.readValue(chatRoom.getPreferences(), new TypeReference<>() {})
-                    : null;
-            return new FastApiChatRequest.MemoryPayload(chatRoom.getAiSummary(), prefsMap);
-        } catch (Exception e) {
-            log.warn("Failed to parse chatRoom preferences JSON, sending null memory: {}", e.getMessage());
-            return new FastApiChatRequest.MemoryPayload(chatRoom.getAiSummary(), null);
-        }
     }
 
     private MessageDoneResponse processAndSave(ChatRoom chatRoom, String userContent,
@@ -324,6 +307,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         FastApiDonePayload.ChangeData change = payload.change();
 
         List<DestinationItem> newDestinations = change.destinations();
+        if (newDestinations != null) {
+            ItineraryServiceImpl.validateDestinations(newDestinations);
+        }
 
         LocalDate effectiveStart = newDestinations != null
                 ? newDestinations.get(0).startDate()
