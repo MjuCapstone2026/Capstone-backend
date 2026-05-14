@@ -106,6 +106,7 @@
           },
           "itinerary": {
             "itineraryId": "aaa-111",
+            "destinations": [{"city": "서울", "start_date": "2026-05-01", "end_date": "2026-05-04"}],
             "startDate": "2026-05-01",
             "endDate": "2026-05-04",
             "dayPlans": {
@@ -143,6 +144,7 @@
           },
           "change": {
             "itineraryId": "aaa-111",
+            "destinations": [{"city": "도쿄", "start_date": "2026-05-03", "end_date": "2026-05-07"}],
             "startDate": "2026-05-03",
             "endDate": "2026-05-07",
             "totalDays": 5,
@@ -313,15 +315,15 @@
 5. **FastAPI 호출**: WebClient로 FastAPI AI Agent에 사용자 메시지 및 `room_id` 전달, SSE 스트리밍 요청합니다.
 6. **스트리밍 전달**: FastAPI로부터 수신한 토큰을 Flux로 프론트엔드에 실시간 전달합니다.
 7. **Embedding 생성**: 스트리밍 완료 후 FastAPI에서 사용자 메시지 및 assistant 메시지 본문을 `google-generativeai`의 `embed_content`로 임베딩 벡터를 생성합니다.
-8. **스트리밍 완료 후 분기 처리(java 서버에서 처리)**: FastAPI 응답의 `type`을 기준으로 DB 저장을 분기합니다. done 이벤트에 embedding 벡터를 포함하여 Java로 전달합니다. `userMesage` / `assistantMessage` 는 항상 저장합니다.
-    - `chat` → `chat_messages` 저장 + embedding 저장 `memory`가 존재하면 `chat_rooms.ai_summary`, `chat_rooms.preferences`를 갱신합니다.
-    - 추가 도메인 처리 없이 종료합니다.
-    - `itinerary` → chat_messages 저장 + embedding 저장 + itineraries 수정 + itinerary_logs 스냅샷 저장
+8. **스트리밍 완료 후 분기 처리(java 서버에서 처리)**: FastAPI 응답의 `type`을 기준으로 DB 저장을 분기합니다. done 이벤트에 embedding 벡터를 포함하여 Java로 전달합니다. `userMessage` / `assistantMessage` 는 항상 저장합니다.
+    - **Memory 갱신**: done 이벤트에 `memory` 필드가 non-null이면 `chat_rooms.ai_summary`와 `chat_rooms.preferences`를 갱신합니다. (type과 무관하게 처리)
+    - `chat` → `chat_messages` 저장 + embedding 저장. 추가 도메인 처리 없이 종료합니다. (`assistant` 메시지의 `action_result`는 `null`)
+    - `itinerary` → chat_messages 저장 + embedding 저장 + itineraries 수정 + itinerary_logs 스냅샷 저장 + `action_result`에 변경 후 일정 정보(`itineraryId`, `destinations`, `startDate`, `endDate`, `totalDays`, `dayPlans`) 저장
         - AI 서버는 수정된 날짜만 전송하며, 백엔드에서 기존 `day_plans`에 병합(수정되지 않은 날짜는 그대로 유지)합니다.
         - 저장 전 각 날짜의 아이템 배열을 `time` 오름차순으로 정렬하여 저장합니다.
-    - `reservation` → chat_messages 저장 + embedding 저장 + reservations 신규 저장 (`externalRefId` 기준, UUID PK 자동 생성, status = `confirmed`)
-    - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 (`reservationId`로 조회 후 status = `cancelled`, cancelledAt 갱신)
-    - `change` → 사용자가 일정의 예산, 인원(성인수, 아이수, 아이 나이) 등 기본 정보 수정을 llm으로 요청할 경우
+    - `change` → chat_messages 저장 + embedding 저장 + itineraries 기본 정보 수정 + itinerary_logs 스냅샷 저장 + `action_result`에 변경 후 기본 정보(`itineraryId`, `destinations`, `startDate`, `endDate`, `totalDays`, `budget`, `adultCount`, `childCount`, `childAges`) 저장. 사용자가 여행지, 날짜, 예산, 인원 등 기본 정보 수정을 AI에게 요청할 경우 처리합니다.
+    - `reservation` → chat_messages 저장 + embedding 저장 + reservations 신규 저장 (`externalRefId` 기준, UUID PK 자동 생성, status = `confirmed`) + `action_result`에 예약 정보(`reservationId`, `type`, `status`, `bookingUrl`, `externalRefId`, `detail`, `totalPrice`, `currency`, `reservedAt`) 저장
+    - `cancel` → chat_messages 저장 + embedding 저장 + reservations 취소 처리 (`reservationId`로 조회 후 status = `cancelled`, cancelledAt 갱신) + `action_result`에 취소 정보(`reservationId`, `status`, `cancelledAt`) 저장
 9. **done 이벤트 전송**: 저장 완료 후 최종 메타데이터를 done 이벤트로 프론트엔드에 전송합니다. `itinerary` 타입의 경우 병합 후 전체 날짜의 `dayPlans`를 반환합니다. 아이템 배열은 `time` 오름차순 정렬 후 `index`(0부터)를 부여하여 반환합니다.
 
 ### **4.2 DB 저장 구조**

@@ -58,6 +58,17 @@
           "messageId": "msg-039",
           "role": "assistant",
           "content": "북촌한옥마을을 인사동으로 변경했습니다!",
+          "actionResult": {
+            "itineraryId": "aaa-111",
+            "destinations": [{"city": "서울", "start_date": "2026-05-01", "end_date": "2026-05-04"}],
+            "startDate": "2026-05-01",
+            "endDate": "2026-05-04",
+            "totalDays": 4,
+            "budget": 500000.00,
+            "adultCount": 2,
+            "childCount": 0,
+            "childAges": []
+          },
           "createdAt": "2026-04-03T21:49:30"
         },
         {
@@ -169,12 +180,25 @@
 
 #### **4.2 DB 조회 구조 (chat_messages Table)**
 
+**응답 메시지 아이템 필드**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messageId` | UUID | 메시지 고유 ID |
+| `role` | String | 발화 주체 (`user` / `assistant`) |
+| `content` | String | 메시지 본문 |
+| `actionResult` | Object \| null | AI가 수행한 액션 결과 스냅샷. `user` 메시지 및 일반 대화(`chat` 타입) `assistant` 메시지는 `null`. `change`, `reservation`, `cancel`, `itinerary` 타입 처리 시 저장된 결과 객체 반환 |
+| `createdAt` | String (ISO 8601) | 전송 일시 |
+
+**DB 조회 구조 (chat_messages Table)**
+
 | Column | Type | Description |
 | --- | --- | --- |
 | `id` | UUID | 메시지 고유 ID |
 | `room_id` | UUID | 소속 채팅방 ID |
 | `role` | VARCHAR(20) | 발화 주체 (`user` / `assistant` / `tool`) |
 | `content` | TEXT | 메시지 본문 |
+| `action_result` | JSONB | AI 액션 결과 스냅샷 (nullable) |
 | `created_at` | TIMESTAMP | 전송 일시 |
 
 > `embedding`은 응답에 포함하지 않습니다.

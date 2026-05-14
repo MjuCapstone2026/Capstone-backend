@@ -27,9 +27,9 @@
 
 ```json
 {
-  "destination": "제주도",
-  "startDate": "2026-05-01",
-  "endDate": "2026-05-03",
+  "destinations": [
+    {"city": "제주도", "start_date": "2026-05-01", "end_date": "2026-05-03"}
+  ],
   "budget": 300000,
   "adultCount": 2,
   "childCount": 1,
@@ -39,9 +39,10 @@
 
 | Field | Required | Type | Description |
 | --- | --- | --- | --- |
-| `destination` | Y | String | 여행지 |
-| `startDate` | Y | DATE | 여행 시작일 |
-| `endDate` | Y | DATE | 여행 종료일 |
+| `destinations` | Y | Array | 여행지 목록. 1개 이상이어야 하며, 여러 목적지일 경우 날짜가 연속적(앞 항목의 `end_date` = 다음 항목의 `start_date`)이어야 함 |
+| `destinations[].city` | Y | String | 여행지 이름 |
+| `destinations[].start_date` | Y | DATE | 해당 여행지 방문 시작일 (형식: YYYY-MM-DD) |
+| `destinations[].end_date` | Y | DATE | 해당 여행지 방문 종료일 (형식: YYYY-MM-DD). `start_date`보다 이후여야 함 |
 | `budget` | N | Decimal | 예산 |
 | `adultCount` | Y | Int | 성인 수 (최솟값: 1) |
 | `childCount` | Y | Int | 아이 수 (최솟값: 0). `childAges`와 항상 함께 전달해야 함 |
@@ -68,21 +69,48 @@
 
 #### **3.2 잘못된 요청 (400 Bad Request)**
 
-**필수 필드 누락**
+**`destinations`가 비어 있거나 누락됨**
 ```json
 {
   "status": 400,
   "error": "Bad Request",
-  "message": "destination is required."
+  "message": "destinations must contain at least one item."
 }
 ```
 
-**`startDate`가 `endDate`보다 늦음**
+**`destinations` 항목의 `city`가 비어 있음**
 ```json
 {
   "status": 400,
   "error": "Bad Request",
-  "message": "startDate must not be later than endDate."
+  "message": "Each destination must have a non-blank city name."
+}
+```
+
+**`destinations` 항목의 `startDate` 또는 `endDate`가 null**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Each destination must have startDate and endDate."
+}
+```
+
+**`destinations` 항목의 `startDate`가 `endDate` 이후이거나 같음**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Each destination's startDate must be before endDate. city=제주도"
+}
+```
+
+**`destinations` 항목 간 날짜가 연속적이지 않음**
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Destination dates must be consecutive: destinations[0].endDate must equal destinations[1].startDate."
 }
 ```
 
@@ -150,8 +178,9 @@
 2. **Claim Extraction**: JWT의 `sub` 클레임을 추출하여 `clerk_id`로 사용합니다.
 3. **User Check**: `users` 테이블에서 해당 `clerk_id` 사용자가 존재하는지 확인합니다. 존재하지 않으면 404를 반환합니다.
 4. **Validation**: 아래 항목을 검증합니다. 위반 시 400을 반환합니다.
-   - 필수 필드(`destination`, `startDate`, `endDate`, `adultCount`, `childCount`, `childAges`) 중 누락된 항목이 있으면 400을 반환합니다.
-   - `startDate`가 `endDate`보다 늦으면 400을 반환합니다.
+   - `destinations`가 null이거나 비어 있으면 400을 반환합니다.
+   - 각 `destinations` 항목의 `city`가 비어 있거나, `startDate`/`endDate`가 null이거나, `startDate`가 `endDate` 이후이거나 같으면 400을 반환합니다.
+   - 여러 목적지인 경우, 앞 항목의 `endDate`와 다음 항목의 `startDate`가 같지 않으면(날짜 연속성 위반) 400을 반환합니다.
    - `adultCount`가 1 미만이면 400을 반환합니다.
    - `childAges` 배열 길이가 `childCount`와 일치하지 않으면 400을 반환합니다.
 5. **Insert chat_rooms**: `chat_rooms` 테이블에 새 채팅방을 생성합니다.
@@ -166,7 +195,7 @@
 | --- | --- |
 | `id` | PK |
 | `clerk_id` | JWT `sub` 클레임 |
-| `name` | 자동 생성: `"{N-1}박 {N}일 {destination} 여행"` |
+| `name` | 자동 생성: `"{N-1}박 {N}일 {destinations[0].city} 여행"` (전체 여행 기간 = 마지막 목적지 `end_date` - 첫 번째 목적지 `start_date`) |
 | `ai_summary` | `NULL` |
 | `preferences` | `NULL` |
 | `created_at` | 생성 일자 |
@@ -178,10 +207,10 @@
 | --- | --- |
 | `id` | PK |
 | `room_id` | 생성된 `chat_rooms.id` |
-| `destination` | 요청 `destination` |
-| `start_date` | 요청 `startDate` |
-| `end_date` | 요청 `endDate` |
-| `total_days` | `endDate - startDate + 1` 계산 |
+| `destinations` | 요청 `destinations` JSONB 배열 |
+| `start_date` | `destinations[0].start_date` |
+| `end_date` | `destinations[마지막].end_date` |
+| `total_days` | `end_date - start_date + 1` 계산 |
 | `budget` | 요청 `budget` (미포함 시 `NULL`) |
 | `adult_count` | 요청 `adultCount` |
 | `child_count` | 요청 `childCount` |
@@ -200,9 +229,7 @@ curl -X POST https://your-api-domain.com/api/v1/chat-rooms \
   -H "Authorization: Bearer <clerk_jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "destination": "제주도",
-    "startDate": "2026-05-01",
-    "endDate": "2026-05-03",
+    "destinations": [{"city": "제주도", "start_date": "2026-05-01", "end_date": "2026-05-03"}],
     "budget": 300000,
     "adultCount": 2,
     "childCount": 1,
